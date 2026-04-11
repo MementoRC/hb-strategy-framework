@@ -1,5 +1,11 @@
 """Type-safe value objects for strategy framework."""
 
+from strategy_framework.primitives.actions import (
+    CreateExecutorAction,
+    StopExecutorAction,
+    StoreExecutorAction,
+    UpdateExecutorAction,
+)
 from strategy_framework.primitives.enums import (
     CloseType,
     OrderType,
@@ -18,4 +24,8 @@ __all__ = [
     "PercentData",
     "TrailingStop",
     "TripleBarrierConfig",
+    "CreateExecutorAction",
+    "StopExecutorAction",
+    "StoreExecutorAction",
+    "UpdateExecutorAction",
 ]
