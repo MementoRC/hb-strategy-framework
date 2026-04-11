@@ -1,6 +1,9 @@
 """Protocols: pure Protocol contracts for hb-strategy-framework."""
 
+from strategy_framework.protocols.config import ConfigProtocol, UpdatableConfigProtocol
+from strategy_framework.protocols.controller import ControllerProtocol
 from strategy_framework.protocols.executor import ExecutorProtocol
+from strategy_framework.protocols.lifecycle import BarrierProtocol, ShutdownProtocol
 from strategy_framework.protocols.market import (
     CancelOrderSignature,
     GetMidPriceSignature,
@@ -10,10 +13,15 @@ from strategy_framework.protocols.market import (
 from strategy_framework.protocols.order import TrackedOrderProtocol
 
 __all__ = [
+    "BarrierProtocol",
     "CancelOrderSignature",
+    "ConfigProtocol",
+    "ControllerProtocol",
     "ExecutorProtocol",
     "GetMidPriceSignature",
     "MarketAccessProtocol",
     "PlaceOrderSignature",
+    "ShutdownProtocol",
     "TrackedOrderProtocol",
+    "UpdatableConfigProtocol",
 ]

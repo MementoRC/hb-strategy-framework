@@ -28,13 +28,15 @@ class MockMarketAccess:
     ) -> str:
         self._order_counter += 1
         order_id = f"mock_{self._order_counter:04d}"
-        self.order_history.append({
-            "order_id": order_id,
-            "order_type": order_type,
-            "side": side,
-            "amount": amount,
-            "price": price,
-        })
+        self.order_history.append(
+            {
+                "order_id": order_id,
+                "order_type": order_type,
+                "side": side,
+                "amount": amount,
+                "price": price,
+            }
+        )
         return order_id
 
     def cancel_order(self, order_id: str) -> None:
