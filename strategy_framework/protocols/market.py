@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 class PlaceOrderSignature(Protocol):
     """Callable signature for placing an order."""
 
-    def __call__(
+    def __call__(  # pragma: no cover
         self,
         order_type: str,
         side: str,
@@ -31,7 +31,7 @@ class PlaceOrderSignature(Protocol):
 class CancelOrderSignature(Protocol):
     """Callable signature for cancelling an order."""
 
-    def __call__(self, order_id: str) -> None:
+    def __call__(self, order_id: str) -> None:  # pragma: no cover
         """Cancel an order by its client order ID."""
         ...
 
@@ -39,7 +39,7 @@ class CancelOrderSignature(Protocol):
 class GetMidPriceSignature(Protocol):
     """Callable signature for getting current mid price."""
 
-    def __call__(self) -> Decimal:
+    def __call__(self) -> Decimal:  # pragma: no cover
         """Return the current mid price."""
         ...
 
@@ -54,7 +54,7 @@ class MarketAccessProtocol(Protocol):
     - Test: MockMarketAccess from testing module
     """
 
-    def place_order(
+    def place_order(  # pragma: no cover
         self,
         order_type: str,
         side: str,
@@ -64,10 +64,10 @@ class MarketAccessProtocol(Protocol):
         """Place an order, return the client order ID."""
         ...
 
-    def cancel_order(self, order_id: str) -> None:
+    def cancel_order(self, order_id: str) -> None:  # pragma: no cover
         """Cancel an order by its client order ID."""
         ...
 
-    def get_mid_price(self) -> Decimal:
+    def get_mid_price(self) -> Decimal:  # pragma: no cover
         """Return the current mid price for the trading pair."""
         ...

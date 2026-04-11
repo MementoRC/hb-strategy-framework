@@ -25,35 +25,39 @@ class PercentData:
             value = Decimal(value)
         object.__setattr__(self, "_value", value.quantize(_QUANTIZE_EXP, rounding=ROUND_HALF_UP))
 
+    def _get_value(self) -> Decimal:
+        result: Decimal = object.__getattribute__(self, "_value")
+        return result
+
     @property
     def value(self) -> Decimal:
-        return self._value
+        return self._get_value()
 
     def __setattr__(self, name: str, value: object) -> None:
         raise AttributeError(f"{type(self).__name__} is immutable")
 
     def __hash__(self) -> int:
-        return hash(self._value)
+        return hash(self._get_value())
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, PercentData):
-            return self._value == other._value
+            return self._get_value() == other._get_value()
         return NotImplemented
 
     def __lt__(self, other: object) -> bool:
         if isinstance(other, PercentData):
-            return self._value < other._value
+            return self._get_value() < other._get_value()
         return NotImplemented
 
     def __mul__(self, other: Decimal) -> Decimal:
-        return self._value * other
+        return self._get_value() * other
 
     def __rmul__(self, other: Decimal) -> Decimal:
-        return other * self._value
+        return other * self._get_value()
 
     def __repr__(self) -> str:
-        return f"PercentData({self._value})"
+        return f"PercentData({self._get_value()})"
 
     def __str__(self) -> str:
-        pct = self._value * 100
+        pct = self._get_value() * 100
         return f"{pct:.2f}%"

@@ -32,7 +32,7 @@ class TripleBarrierConfig(BaseModel):
     @field_validator("time_limit_s", mode="before")
     @classmethod
     def _validate_non_negative_time(cls, v: object) -> int:
-        val = int(v)  # type: ignore[arg-type]
+        val: int = int(v)  # type: ignore[call-overload]
         if val < 0:
             msg = "time_limit_s must be non-negative"
             raise ValueError(msg)

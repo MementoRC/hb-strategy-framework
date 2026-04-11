@@ -70,3 +70,21 @@ class TestPercentData:
         p = PercentData("0.015")
         with pytest.raises(AttributeError):
             p.value = Decimal("0.020")  # type: ignore[misc]
+
+    def test_eq_with_non_percent_returns_not_implemented(self):
+        """Equality with non-PercentData returns NotImplemented (then False)."""
+        p = PercentData("0.015")
+        assert p != 0.015
+        assert p != "0.015"
+
+    def test_lt_with_non_percent_returns_not_implemented(self):
+        """Less-than with non-PercentData raises TypeError."""
+        p = PercentData("0.015")
+        with pytest.raises(TypeError):
+            _ = p < 0.5  # type: ignore[operator]
+
+    def test_rmul(self):
+        """Reverse multiplication: Decimal * PercentData."""
+        p = PercentData("0.10")
+        result = Decimal("200") * p
+        assert result == Decimal("20.0")

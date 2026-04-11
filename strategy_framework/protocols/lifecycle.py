@@ -13,12 +13,12 @@ if TYPE_CHECKING:
 class ShutdownProtocol(Protocol):
     """Contract for graceful shutdown behavior."""
 
-    async def shutdown(self) -> None:
+    async def shutdown(self) -> None:  # pragma: no cover
         """Execute graceful shutdown sequence."""
         ...
 
     @property
-    def has_pending_orders(self) -> bool:
+    def has_pending_orders(self) -> bool:  # pragma: no cover
         """Whether there are still orders in flight."""
         ...
 
@@ -26,6 +26,8 @@ class ShutdownProtocol(Protocol):
 class BarrierProtocol(Protocol):
     """Contract for barrier evaluation behavior."""
 
-    def evaluate_barriers(self, net_pnl_pct: Decimal, elapsed_s: float) -> CloseType | None:
+    def evaluate_barriers(  # pragma: no cover
+        self, net_pnl_pct: Decimal, elapsed_s: float
+    ) -> CloseType | None:
         """Evaluate all barriers, return close type if triggered."""
         ...
