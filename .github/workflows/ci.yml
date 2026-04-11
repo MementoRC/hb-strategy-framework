@@ -9,7 +9,7 @@ on:
 
 jobs:
   checks:
-    uses: Claire-s-Monster/ci-framework/.github/workflows/reusable-ci.yml@v0.4.0
+    uses: Claire-s-Monster/ci-framework/.github/workflows/reusable-ci.yml@v2.7.0
     with:
       pixi-environment: "ci"
       python-versions: '["3.10", "3.11", "3.12"]'
