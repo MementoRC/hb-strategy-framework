@@ -29,4 +29,3 @@ def test_not_implemented_message_mentions_market_simulator() -> None:
     obj = ConcreteBalance()
     with pytest.raises(NotImplementedError, match="market-simulator"):
         obj.validate_balance("BTC", Decimal("0.1"))
-
