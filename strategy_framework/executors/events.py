@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-from collections import defaultdict
 from dataclasses import dataclass
 from decimal import Decimal
 from typing import Any, Callable
@@ -34,10 +33,10 @@ class PriceUpdatedEvent:
 
 class EventBus:
     def __init__(self) -> None:
-        self._handlers: dict[str, list[Callable[[Any], None]]] = defaultdict(list)
+        self._handlers: dict[str, list[Callable[[Any], None]]] = {}
 
     def subscribe(self, event_type: str, handler: Callable[[Any], None]) -> None:
-        self._handlers[event_type].append(handler)
+        self._handlers.setdefault(event_type, []).append(handler)
 
     def unsubscribe(self, event_type: str, handler: Callable[[Any], None]) -> None:
         handlers = self._handlers.get(event_type, [])
@@ -47,6 +46,11 @@ class EventBus:
             pass
 
     def emit(self, event_type: str, event: Any) -> None:
+        """Dispatch event to all registered handlers.
+
+        Exceptions raised by individual handlers are logged and suppressed so
+        that one failing handler cannot prevent others from receiving the event.
+        """
         for handler in list(self._handlers.get(event_type, [])):
             try:
                 handler(event)

@@ -18,6 +18,12 @@ class TestEventDataclasses:
         with pytest.raises((AttributeError, TypeError)):
             evt.order_id = "other"  # type: ignore[misc]
 
+    def test_order_filled_event_fields(self) -> None:
+        evt = OrderFilledEvent(order_id="o1", price=Decimal("100"), amount=Decimal("1"))
+        assert evt.order_id == "o1"
+        assert evt.price == Decimal("100")
+        assert evt.amount == Decimal("1")
+
     def test_price_updated_event(self) -> None:
         evt = PriceUpdatedEvent(price=Decimal("50000"))
         assert evt.price == Decimal("50000")
@@ -28,6 +34,7 @@ class TestEventDataclasses:
 
     def test_order_failed_event(self) -> None:
         evt = OrderFailedEvent(order_id="o3", reason="timeout")
+        assert evt.order_id == "o3"
         assert evt.reason == "timeout"
 
 
