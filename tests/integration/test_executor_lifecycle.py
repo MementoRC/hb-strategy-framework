@@ -8,7 +8,7 @@ from strategy_framework.executors.triple_barrier import (
     TripleBarrierExecutor,
     TripleBarrierExecutorConfig,
 )
-from strategy_framework.primitives.enums import CloseType, TradeType
+from strategy_framework.primitives.enums import TradeType
 from strategy_framework.primitives.trailing_stop import TrailingStop
 from strategy_framework.primitives.triple_barrier import TripleBarrierConfig
 from strategy_framework.testing.mock_market import MockMarketAccess

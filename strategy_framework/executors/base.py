@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from decimal import Decimal
 from enum import Enum, auto
 from typing import TYPE_CHECKING
 
@@ -12,11 +11,12 @@ from strategy_framework.executors.events import (
     OrderFilledEvent,
     PriceUpdatedEvent,
 )
-from strategy_framework.primitives.enums import CloseType
 
 if TYPE_CHECKING:
     import datetime
+    from decimal import Decimal
 
+    from strategy_framework.primitives.enums import CloseType
     from strategy_framework.protocols.market import MarketAccessProtocol
 
 

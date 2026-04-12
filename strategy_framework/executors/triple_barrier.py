@@ -14,7 +14,7 @@ from __future__ import annotations
 import datetime
 import logging
 from decimal import Decimal
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from strategy_framework.executors.base import ExecutorBase, ExecutorConfigBase, ExecutorState
 from strategy_framework.mixins.executor.activation import ActivationBoundsMixin
@@ -22,11 +22,11 @@ from strategy_framework.mixins.executor.order_tracking import OrderTrackingMixin
 from strategy_framework.mixins.executor.pnl import PNLCalculatorMixin
 from strategy_framework.mixins.executor.trailing_stop import TrailingStopMixin
 from strategy_framework.primitives.enums import CloseType, TradeType
-from strategy_framework.primitives.trailing_stop import TrailingStop
-from strategy_framework.primitives.triple_barrier import TripleBarrierConfig
 
 if TYPE_CHECKING:
     from strategy_framework.executors.events import EventBus
+    from strategy_framework.primitives.trailing_stop import TrailingStop
+    from strategy_framework.primitives.triple_barrier import TripleBarrierConfig
     from strategy_framework.protocols.market import MarketAccessProtocol
 
 logger = logging.getLogger(__name__)
@@ -38,8 +38,8 @@ class TripleBarrierExecutorConfig(ExecutorConfigBase):
     entry_price: Decimal
     amount: Decimal
     triple_barrier: TripleBarrierConfig
-    trailing_stop: Optional[TrailingStop] = None
-    activation_bounds: Optional[tuple[Decimal, Decimal]] = None
+    trailing_stop: TrailingStop | None = None
+    activation_bounds: tuple[Decimal, Decimal] | None = None
 
 
 class TripleBarrierExecutor(

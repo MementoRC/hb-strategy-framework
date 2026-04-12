@@ -3,6 +3,7 @@ from __future__ import annotations
 from decimal import Decimal
 
 import pytest
+
 from strategy_framework.config.base import StrategyConfigBase
 from strategy_framework.executors.base import (
     ExecutorBase,

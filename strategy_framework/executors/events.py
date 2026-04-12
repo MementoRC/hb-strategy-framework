@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+import contextlib
 import logging
 from dataclasses import dataclass
-from decimal import Decimal
-from typing import Any, Callable
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+    from decimal import Decimal
 
 logger = logging.getLogger(__name__)
 
@@ -40,10 +44,8 @@ class EventBus:
 
     def unsubscribe(self, event_type: str, handler: Callable[[Any], None]) -> None:
         handlers = self._handlers.get(event_type, [])
-        try:
+        with contextlib.suppress(ValueError):
             handlers.remove(handler)
-        except ValueError:
-            pass
 
     def emit(self, event_type: str, event: Any) -> None:
         """Dispatch event to all registered handlers.
