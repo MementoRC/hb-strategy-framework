@@ -34,6 +34,7 @@ python = "3.12.*"
 [environments]
 default = { features = ["dev"], solve-group = "default" }
 ci = { features = ["ci", "dev"], solve-group = "default" }
+quality-ci = { features = ["ci", "dev"], solve-group = "default" }
 py310 = { features = ["py310", "dev"], solve-group = "py310" }
 py311 = { features = ["py311", "dev"], solve-group = "py311" }
 py312 = { features = ["py312", "dev"], solve-group = "py312" }
