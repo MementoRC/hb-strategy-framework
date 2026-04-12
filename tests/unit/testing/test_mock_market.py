@@ -43,3 +43,17 @@ class TestMockMarketAccess:
         id1 = mock.place_order("limit", "buy", Decimal("1"), Decimal("50000"))
         id2 = mock.place_order("limit", "sell", Decimal("1"), Decimal("50000"))
         assert id1 != id2
+
+    def test_get_available_balance_returns_zero_by_default(self) -> None:
+        market = MockMarketAccess()
+        assert market.get_available_balance("USDT") == Decimal("0")
+
+    def test_set_and_get_balance_round_trip(self) -> None:
+        market = MockMarketAccess()
+        market.set_balance("BTC", Decimal("2.5"))
+        assert market.get_available_balance("BTC") == Decimal("2.5")
+
+    def test_set_balance_does_not_affect_other_currencies(self) -> None:
+        market = MockMarketAccess()
+        market.set_balance("BTC", Decimal("1.0"))
+        assert market.get_available_balance("ETH") == Decimal("0")
