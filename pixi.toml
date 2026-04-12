@@ -23,6 +23,7 @@ pytest-cov = ">=4.1.0"
 pytest-timeout = ">=2.2.0"
 bandit = ">=1.8.0"
 pre-commit = ">=2.15.0"
+hatchling = ">=1.18"
 
 [feature.py310.dependencies]
 python = "3.10.*"
@@ -47,5 +48,6 @@ lint = "ruff check strategy_framework tests"
 format = "ruff format strategy_framework tests"
 format-check = "ruff format --check strategy_framework tests"
 typecheck = "mypy strategy_framework"
+build = "hatchling build"
 quality = { depends-on = ["lint", "format-check"] }
 check = { depends-on = ["quality", "typecheck", "test"] }
