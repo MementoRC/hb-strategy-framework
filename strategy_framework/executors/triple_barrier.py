@@ -80,8 +80,8 @@ class TripleBarrierExecutor(
         # Started-at for time-limit
         self._started_at: datetime.datetime | None = None
         # Mixin init
-        self._init_order_tracking()
-        self._init_trailing_stop()
+        self._init_order_tracking()  # type: ignore[misc]
+        self._init_trailing_stop()  # type: ignore[misc]
 
     # ------------------------------------------------------------------
     # ActivationBoundsProtocol properties (read from config)
@@ -148,7 +148,7 @@ class TripleBarrierExecutor(
         Otherwise set started_at and place the entry order.
         """
         mid = self._market.get_mid_price()
-        if not self.is_within_activation_bounds(mid):
+        if not self.is_within_activation_bounds(mid):  # type: ignore[misc]
             # Revert state — executor will activate on a future price update
             self._state = ExecutorState.IDLE
             return
@@ -163,7 +163,7 @@ class TripleBarrierExecutor(
         - ACTIVE: update close price, check trailing stop.
         """
         if self._state == ExecutorState.IDLE:
-            if self.is_within_activation_bounds(price):
+            if self.is_within_activation_bounds(price):  # type: ignore[misc]
                 self._state = ExecutorState.ACTIVE
                 self._started_at = datetime.datetime.now(datetime.timezone.utc)
                 self._close_price = self._config.entry_price
@@ -176,8 +176,8 @@ class TripleBarrierExecutor(
         # Update close price to current mid for PnL calculation
         if self._entry_filled:
             self._close_price = price
-            self.update_trailing_stop(price)
-            if self.trailing_stop_triggered:
+            self.update_trailing_stop(price)  # type: ignore[misc]
+            if self.trailing_stop_triggered:  # type: ignore[misc]
                 self.stop(CloseType.TRAILING_STOP)
 
     def on_order_filled(self, order_id: str, price: Decimal, amount: Decimal) -> None:
@@ -225,7 +225,9 @@ class TripleBarrierExecutor(
 
     def _place_entry_order(self) -> str:
         """Place the entry limit order and track it."""
-        from strategy_framework.testing.factories import TrackedOrderFactory  # TODO(plan4): replace with primitives.TrackedOrder
+        from strategy_framework.testing.factories import (
+            TrackedOrderFactory,
+        )  # TODO(plan4): replace with primitives.TrackedOrder
 
         order_id = self._market.place_order(
             order_type="limit",
@@ -239,7 +241,7 @@ class TripleBarrierExecutor(
             price=self._config.entry_price,
             side=self._config.side.value,
         )
-        self.add_open_order(tracked)
+        self.add_open_order(tracked)  # type: ignore[misc]
         return order_id
 
     def _check_barriers(self) -> None:

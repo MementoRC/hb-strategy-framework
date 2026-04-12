@@ -5,7 +5,10 @@ from decimal import Decimal
 
 import pytest
 from strategy_framework.executors.base import ExecutorConfigBase, ExecutorState
-from strategy_framework.executors.triple_barrier import TripleBarrierExecutor, TripleBarrierExecutorConfig
+from strategy_framework.executors.triple_barrier import (
+    TripleBarrierExecutor,
+    TripleBarrierExecutorConfig,
+)
 from strategy_framework.primitives.enums import CloseType, TradeType
 from strategy_framework.primitives.triple_barrier import TripleBarrierConfig
 from strategy_framework.primitives.trailing_stop import TrailingStop
@@ -160,7 +163,7 @@ class TestTripleBarrierExecutorExits:
         ex, market = make_tb_executor(entry_price=Decimal("100"), trailing_stop=ts)
         ex.start()
         ex.notify_order_filled("o1", Decimal("100"), Decimal("1"))
-        ex.notify_price_updated(Decimal("103"))    # +3% → activates, sets trigger at +2%
+        ex.notify_price_updated(Decimal("103"))  # +3% → activates, sets trigger at +2%
         ex.notify_price_updated(Decimal("101.5"))  # +1.5% < trigger +2% → fires
         assert ex.state == ExecutorState.CLOSED
 
