@@ -2,6 +2,9 @@
 
 from decimal import Decimal
 
+from strategy_framework.primitives.enums import CloseType, RunnableStatus
+from strategy_framework.primitives.trailing_stop import TrailingStop
+from strategy_framework.primitives.triple_barrier import TripleBarrierConfig
 from strategy_framework.protocols.composites import (
     ActivationBoundsProtocol,
     BarrierControlProtocol,
@@ -43,6 +46,39 @@ class TestPnLProtocol:
 class TestBarrierControlProtocol:
     def test_is_runtime_checkable(self):
         assert not isinstance(object(), BarrierControlProtocol)
+
+    def test_concrete_satisfies(self):
+        class FakeBarrierControl:
+            status: RunnableStatus = RunnableStatus.RUNNING
+            close_type: CloseType | None = None
+
+            @property
+            def net_pnl_pct(self) -> Decimal:
+                return Decimal("0.025")
+
+            @property
+            def triple_barrier(self) -> TripleBarrierConfig:
+                return TripleBarrierConfig(
+                    stop_loss=Decimal("0.05"),
+                    take_profit=Decimal("0.10"),
+                    time_limit_s=3600,
+                )
+
+            @property
+            def trailing_stop(self) -> TrailingStop | None:
+                return TrailingStop(
+                    activation_price_pct=Decimal("0.015"),
+                    trailing_delta_pct=Decimal("0.005"),
+                )
+
+            @property
+            def elapsed_seconds(self) -> float:
+                return 120.5
+
+            def place_close_order(self, close_type: CloseType) -> None:
+                pass
+
+        assert isinstance(FakeBarrierControl(), BarrierControlProtocol)
 
 
 class TestRetryProtocol:

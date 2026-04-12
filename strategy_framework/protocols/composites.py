@@ -77,7 +77,7 @@ class BarrierControlProtocol(Protocol):
     close_type: CloseType | None
 
     @property
-    def net_pnl_pct(self) -> Decimal: ...
+    def net_pnl_pct(self) -> Decimal: ...  # satisfied by PNLCalculatorMixin
 
     @property
     def triple_barrier(self) -> TripleBarrierConfig: ...
@@ -106,7 +106,7 @@ class RetryHostProtocol(Protocol):
 class RetryProtocol(Protocol):
     """Retry output contract — what consumers see on a class with RetryMixin."""
 
-    current_retries: int  # plain attribute (not @property)
+    current_retries: int  # plain attribute — NOTE: runtime_checkable does NOT verify data attrs
     max_retries: int
 
     def increment_retries(self) -> None: ...
