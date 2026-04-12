@@ -41,10 +41,10 @@ The `EventBus` is internal to the executors module for now, but designed to be e
 ```
 strategy_framework/
 ├── executors/
-│   ├── __init__.py           # Re-exports: ExecutorBase, TripleBarrierExecutor, ExecutorState, ExecutorStateError
-│   ├── base.py               # ExecutorBase — state machine + hooks + bus wiring
+│   ├── __init__.py           # Re-exports: ExecutorBase, ExecutorConfigBase, TripleBarrierExecutor, ExecutorState, ExecutorStateError
+│   ├── base.py               # ExecutorBase + ExecutorConfigBase — state machine + hooks + bus wiring
 │   ├── events.py             # EventBus + typed event dataclasses (internal)
-│   └── triple_barrier.py     # TripleBarrierExecutor + TripleBarrierConfig
+│   └── triple_barrier.py     # TripleBarrierExecutor + TripleBarrierExecutorConfig
 tests/
 ├── unit/
 │   └── executors/
@@ -65,25 +65,36 @@ Modify: `strategy_framework/__init__.py` — add executor exports.
 ### Constructor
 
 ```python
-ExecutorBase(market: MarketAccessProtocol, config: StrategyConfigBase)
+ExecutorBase(market: MarketAccessProtocol, config: ExecutorConfigBase)
 ```
 
 Matches market_simulator's DI pattern. `market` is the sole interface for all exchange operations.
+
+`ExecutorConfigBase` is a new thin base class (extends `StrategyConfigBase`) introduced in Plan 3 to namespace executor-specific config cleanly and avoid future naming collision when Plan 3 is integrated with the live framework. Concrete executors extend `ExecutorConfigBase`, not `StrategyConfigBase` directly.
 
 ### State Machine
 
 ```
 IDLE → ACTIVE → CLOSING → CLOSED
+ ↑________|  (if activation bounds not met at start: stays IDLE, re-evaluates on each price tick)
 ```
 
-`ExecutorState` is an enum. Transitions are validated — invalid transitions raise `ExecutorStateError`. State is read-only externally.
+`ExecutorState` is an enum. Transitions are validated — invalid transitions raise `ExecutorStateError`. State is read-only externally. Calling `stop()` on a `CLOSED` executor is a no-op (double-stop guard).
 
 | State | Meaning |
 |-------|---------|
-| `IDLE` | Created, not yet started |
+| `IDLE` | Created, not yet started — also used when activation bounds not yet met |
 | `ACTIVE` | Entry placed or filled, managing position |
-| `CLOSING` | Exit triggered, awaiting order confirmation |
+| `CLOSING` | Exit triggered, awaiting order cancel confirmation |
 | `CLOSED` | Terminal — position closed, no further transitions |
+
+**Full exit call chain:**
+```
+trigger_exit(close_type) → _transition(CLOSING) → market.cancel_order(open_orders)
+  → on_order_cancelled(...) [for each cancelled] → _transition(CLOSED) → on_stopped(close_type)
+```
+
+**`stop(close_type)` is a public method** on `ExecutorBase` that initiates the exit sequence. Subclasses may call it directly when an exit condition is detected.
 
 ### Dedicated Event Hooks
 
@@ -169,7 +180,7 @@ class TripleBarrierExecutor(
 ### Config
 
 ```python
-class TripleBarrierExecutorConfig(StrategyConfigBase):
+class TripleBarrierExecutorConfig(ExecutorConfigBase):
     trading_pair: str
     side: TradeType
     entry_price: Decimal
@@ -183,25 +194,29 @@ class TripleBarrierExecutorConfig(StrategyConfigBase):
 
 | Hook | Action |
 |------|--------|
-| `on_started` | Validate activation bounds; if within bounds (or no bounds), place entry order via `market.place_order(...)` |
+| `on_started` | Check activation bounds. If within bounds (or no bounds): place entry order → `IDLE → ACTIVE`. If out-of-bounds: **stay IDLE**, schedule re-evaluation on next price tick. |
 | `on_order_filled` | Track order via `OrderTrackingMixin`; update PnL via `PNLCalculatorMixin`; check TP/SL exits |
-| `on_price_updated` | Re-check activation bounds; update trailing stop ratchet; check time limit |
+| `on_price_updated` | If IDLE: re-check activation bounds (may trigger entry). If ACTIVE: update trailing stop ratchet; check time limit via `tick(now)` |
 | `on_order_cancelled` | Log; re-evaluate state (may re-enter or close) |
-| `on_order_failed` | Transition to CLOSING; emit `CloseType.FAILED` |
-| `on_stopped` | Cancel all open orders via `market.cancel_order(...)`; emit final PnL via bus |
+| `on_order_failed` | Call `stop(CloseType.FAILED)` |
+| `on_stopped` | Emit final PnL summary via bus |
+
+### Time Limit
+
+Time limit is checked via a `tick(now: datetime)` method on `ExecutorBase`, called from `on_price_updated`. This decouples time tracking from price events — if no price ticks arrive, the executor will not fire a time-limit exit, but the design is explicit about this limitation. A separate `tick()` call path (e.g., from a Controller heartbeat in Plan 4) can drive time-limit exits independently of price.
 
 ### Exit Triggers
 
-Checked in `on_order_filled` and `on_price_updated`:
+Checked in `on_order_filled` and `on_price_updated` (via `tick()`):
 
-| Trigger | Condition |
-|---------|-----------|
-| Take profit | `pnl_pct >= triple_barrier.take_profit` |
-| Stop loss | `pnl_pct <= -triple_barrier.stop_loss` |
-| Time limit | `elapsed_seconds >= triple_barrier.time_limit` |
-| Trailing stop | `TrailingStopMixin.trailing_stop_triggered` |
+| Trigger | Condition | Checked in |
+|---------|-----------|------------|
+| Take profit | `pnl_pct >= triple_barrier.take_profit` | `on_order_filled` |
+| Stop loss | `pnl_pct <= -triple_barrier.stop_loss` | `on_order_filled` |
+| Time limit | `elapsed_seconds >= triple_barrier.time_limit` | `tick()` |
+| Trailing stop | `TrailingStopMixin.trailing_stop_triggered` | `on_price_updated` |
 
-All exits transition to `CLOSING` and call `stop(close_type)` which fires `on_stopped`.
+All exits call `stop(close_type)` which initiates the full exit sequence (see State Machine section).
 
 ---
 
@@ -213,9 +228,9 @@ All exits transition to `CLOSING` and call `stop(close_type)` which fires `on_st
 
 | File | Covers |
 |------|--------|
-| `test_base.py` | Valid/invalid state transitions, `ExecutorStateError`, hook dispatch order (hooks before bus), bus wiring |
-| `test_events.py` | Subscribe, emit, unsubscribe, multiple handlers, handler exception isolation |
-| `test_triple_barrier.py` | TP exit, SL exit, time limit exit, trailing stop exit, activation bounds gate, partial fills, entry order failure |
+| `test_base.py` | Valid/invalid state transitions, `ExecutorStateError`, hook dispatch order (hooks before bus), bus wiring, double-stop guard (no-op on CLOSED), `tick()` with no price updates |
+| `test_events.py` | Subscribe, emit, unsubscribe, multiple handlers, handler exception isolation (bus continues after one handler throws) |
+| `test_triple_barrier.py` | TP exit, SL exit, time limit exit (via `tick()`), trailing stop exit, activation bounds gate (out-of-bounds stays IDLE, entry on next tick when in-bounds), partial fills, entry order failure |
 
 ### Integration Tests (`test_executor_lifecycle.py`)
 
@@ -246,6 +261,7 @@ None required — all needed protocols (`MarketAccessProtocol`, `ExecutorProtoco
 ```python
 from strategy_framework.executors import (
     ExecutorBase,
+    ExecutorConfigBase,
     ExecutorState,
     ExecutorStateError,
     TripleBarrierExecutor,
