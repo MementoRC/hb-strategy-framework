@@ -25,17 +25,17 @@ class RetryMixin:
     Calling _init_retry() twice resets state (safe in diamond MRO).
     """
 
-    def _init_retry(self: RetryHostProtocol) -> None:  # type: ignore[misc]
+    def _init_retry(self: RetryHostProtocol) -> None:
         """Initialize retry state. Call from __init__ after super().__init__()."""
         self.current_retries: int = 0  # type: ignore[attr-defined]
 
-    def increment_retries(self: RetryHostProtocol) -> None:  # type: ignore[misc]
+    def increment_retries(self: RetryHostProtocol) -> None:
         """Increment the retry counter by one."""
         self.current_retries += 1  # type: ignore[attr-defined]
 
-    def has_exceeded_max_retries(self: RetryHostProtocol) -> bool:  # type: ignore[misc]
+    def has_exceeded_max_retries(self: RetryHostProtocol) -> bool:
         """Return True when current_retries >= max_retries.
 
         Note: uses >= (fires at exactly max_retries).
         """
-        return self.current_retries >= self.max_retries  # type: ignore[attr-defined]
+        return bool(self.current_retries >= self.max_retries)  # type: ignore[attr-defined]
