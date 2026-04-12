@@ -32,6 +32,9 @@ class TestMarketAccessProtocol:
             def get_mid_price(self) -> Decimal:
                 return Decimal("50000")
 
+            def get_available_balance(self, currency: str) -> Decimal:
+                return Decimal("100.0")
+
         market = FakeMarket()
         assert isinstance(market, MarketAccessProtocol)
 
