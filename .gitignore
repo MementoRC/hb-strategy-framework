@@ -77,6 +77,9 @@ cmake_install.cmake
 # Pixi
 .pixi/
 
+# Git worktrees
+.worktrees/
+
 # Misc
 .DS_Store
 .env.local
