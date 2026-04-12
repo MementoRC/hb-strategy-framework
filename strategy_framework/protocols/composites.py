@@ -2,6 +2,10 @@
 
 These combine simple protocols into the exact interface a specific mixin needs.
 Mixin methods type `self:` against these composites.
+
+Convention:
+- *HostProtocol  — what the HOST must provide (mixin reads these as inputs)
+- *Protocol      — what CONSUMERS see on a class that has the mixin (output contract)
 """
 
 from __future__ import annotations
@@ -11,14 +15,38 @@ from typing import TYPE_CHECKING, Protocol, runtime_checkable
 if TYPE_CHECKING:
     from decimal import Decimal
 
-    from strategy_framework.primitives.enums import CloseType, RunnableStatus
+    from strategy_framework.primitives.enums import CloseType, RunnableStatus, TradeType
     from strategy_framework.primitives.trailing_stop import TrailingStop
     from strategy_framework.primitives.triple_barrier import TripleBarrierConfig
 
 
+# ---------------------------------------------------------------------------
+# PNL
+# ---------------------------------------------------------------------------
+
+
+class PnLHostProtocol(Protocol):
+    """What the host must provide for PNLCalculatorMixin to compute PnL."""
+
+    @property
+    def entry_price(self) -> Decimal: ...
+
+    @property
+    def close_price(self) -> Decimal: ...
+
+    @property
+    def open_filled_amount_quote(self) -> Decimal: ...
+
+    @property
+    def trade_side(self) -> TradeType: ...
+
+    @property
+    def cum_fees_raw(self) -> Decimal: ...
+
+
 @runtime_checkable
 class PnLProtocol(Protocol):
-    """PnL calculation contract — used by barrier and reporting mixins."""
+    """PnL output contract — what consumers see on a class with PNLCalculatorMixin."""
 
     @property
     def net_pnl_pct(self) -> Decimal: ...
@@ -32,10 +60,18 @@ class PnLProtocol(Protocol):
     @property
     def trade_pnl_pct(self) -> Decimal: ...
 
+    @property
+    def trade_pnl_quote(self) -> Decimal: ...
+
+
+# ---------------------------------------------------------------------------
+# Barrier / TrailingStop
+# ---------------------------------------------------------------------------
+
 
 @runtime_checkable
 class BarrierControlProtocol(Protocol):
-    """Everything MixinBarrierControl needs on self."""
+    """Host protocol for TrailingStopMixin and barrier evaluation."""
 
     status: RunnableStatus
     close_type: CloseType | None
@@ -55,20 +91,35 @@ class BarrierControlProtocol(Protocol):
     def place_close_order(self, close_type: CloseType) -> None: ...
 
 
+# ---------------------------------------------------------------------------
+# Retry
+# ---------------------------------------------------------------------------
+
+
+class RetryHostProtocol(Protocol):
+    """What the host must provide for RetryMixin (input contract)."""
+
+    max_retries: int
+
+
+@runtime_checkable
 class RetryProtocol(Protocol):
-    """Contract for retry behavior."""
+    """Retry output contract — what consumers see on a class with RetryMixin."""
 
-    @property
-    def current_retries(self) -> int: ...
-
-    @property
-    def max_retries(self) -> int: ...
+    current_retries: int  # plain attribute (not @property)
+    max_retries: int
 
     def increment_retries(self) -> None: ...
 
 
+# ---------------------------------------------------------------------------
+# OrderTracking
+# ---------------------------------------------------------------------------
+
+
+@runtime_checkable
 class OrderTrackingProtocol(Protocol):
-    """Contract for order tracking behavior."""
+    """Order tracking output contract."""
 
     @property
     def open_orders(self) -> list[object]: ...
@@ -76,4 +127,20 @@ class OrderTrackingProtocol(Protocol):
     @property
     def close_orders(self) -> list[object]: ...
 
-    def update_tracked_order(self, order_id: str, exchange_order_id: str) -> None: ...
+    def update_tracked_order(self, order_id: str, **kwargs: object) -> None: ...
+
+
+# ---------------------------------------------------------------------------
+# ActivationBounds
+# ---------------------------------------------------------------------------
+
+
+@runtime_checkable
+class ActivationBoundsProtocol(Protocol):
+    """Host protocol for ActivationBoundsMixin."""
+
+    entry_price: Decimal
+    activation_bounds: tuple[Decimal, Decimal] | None
+    # Bounds semantics: (lower_multiplier, upper_multiplier) relative to entry_price.
+    # Example: (Decimal("0.99"), Decimal("1.01")) = active when price within 1% of entry.
+    # None = always active.

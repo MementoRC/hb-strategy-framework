@@ -71,3 +71,7 @@ class MarketAccessProtocol(Protocol):
     def get_mid_price(self) -> Decimal:  # pragma: no cover
         """Return the current mid price for the trading pair."""
         ...
+
+    def get_available_balance(self, currency: str) -> Decimal:  # pragma: no cover
+        """Return available (unlocked) balance for the given currency."""
+        ...

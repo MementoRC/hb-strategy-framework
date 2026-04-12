@@ -18,6 +18,7 @@ class MockMarketAccess:
         self._order_counter = 0
         self.order_history: list[dict[str, Any]] = []
         self.cancelled_orders: set[str] = set()
+        self._balances: dict[str, Decimal] = {}  # currency -> available balance
 
     def place_order(
         self,
@@ -48,3 +49,11 @@ class MockMarketAccess:
     def set_mid_price(self, price: Decimal) -> None:
         """Update the mock mid price (for simulating price movement in tests)."""
         self._mid_price = price
+
+    def get_available_balance(self, currency: str) -> Decimal:
+        """Return available (unlocked) balance for the given currency."""
+        return self._balances.get(currency, Decimal("0"))
+
+    def set_balance(self, currency: str, amount: Decimal) -> None:
+        """Set the available balance for a currency (for testing)."""
+        self._balances[currency] = amount
