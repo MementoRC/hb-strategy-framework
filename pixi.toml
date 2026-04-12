@@ -51,4 +51,3 @@ typecheck = "mypy strategy_framework"
 build = "hatchling build"
 quality = { depends-on = ["lint", "format-check"] }
 check = { depends-on = ["quality", "typecheck", "test"] }
-git-finish = "bash -c 'git add pixi.toml && git commit -m \"chore: remove git task definition\" && git push origin fix/dependabot-version-bumps && git log -1 --oneline'"
