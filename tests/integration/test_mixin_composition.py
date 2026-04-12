@@ -21,7 +21,6 @@ from strategy_framework.primitives.trailing_stop import TrailingStop
 from strategy_framework.primitives.triple_barrier import TripleBarrierConfig
 from strategy_framework.testing.factories import TrackedOrderFactory
 
-
 # ---------------------------------------------------------------------------
 # Composite 1: Retry + OrderTracking + TrailingStop
 # ---------------------------------------------------------------------------
@@ -175,7 +174,7 @@ def test_pnl_trailing_stop_not_triggered_at_activation() -> None:
 def test_pnl_trailing_stop_triggered_after_reversal() -> None:
     # Activates at +5%, rises to +8%, then reverses to +5.5% (below trigger of 6%)
     obj = PnLTrailingExecutor("100", "108", "1000")  # pnl=+8%
-    obj.update_trailing_stop(Decimal("108"))          # activates; trigger=6%
-    obj._close = Decimal("105.5")                     # pnl drops to ~5.5%
-    obj.update_trailing_stop(Decimal("105.5"))        # 5.5% < 6% trigger → fires
+    obj.update_trailing_stop(Decimal("108"))  # activates; trigger=6%
+    obj._close = Decimal("105.5")  # pnl drops to ~5.5%
+    obj.update_trailing_stop(Decimal("105.5"))  # 5.5% < 6% trigger → fires
     assert obj.trailing_stop_triggered is True

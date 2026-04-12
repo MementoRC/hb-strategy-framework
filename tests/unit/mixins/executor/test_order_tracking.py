@@ -2,10 +2,6 @@
 
 from __future__ import annotations
 
-from decimal import Decimal
-
-import pytest
-
 from strategy_framework.mixins.executor.order_tracking import OrderTrackingMixin
 from strategy_framework.testing.factories import TrackedOrderFactory
 
