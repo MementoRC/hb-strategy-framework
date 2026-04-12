@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
-
 from strategy_framework.mixins.executor.retry import RetryMixin
 from strategy_framework.protocols.composites import RetryProtocol
 

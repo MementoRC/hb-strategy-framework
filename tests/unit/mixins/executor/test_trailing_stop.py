@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-import pytest
-
 from strategy_framework.mixins.executor.trailing_stop import TrailingStopMixin
 from strategy_framework.primitives.enums import CloseType, RunnableStatus
 from strategy_framework.primitives.trailing_stop import TrailingStop
@@ -45,7 +43,7 @@ class ConcreteTrailing(TrailingStopMixin):
 
 TS_CONFIG = TrailingStop(
     activation_price_pct=Decimal("0.02"),  # activates at +2% PnL
-    trailing_delta_pct=Decimal("0.01"),    # trigger = pnl - 1%
+    trailing_delta_pct=Decimal("0.01"),  # trigger = pnl - 1%
 )
 
 

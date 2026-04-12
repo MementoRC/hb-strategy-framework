@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from strategy_framework.primitives.actions import (
     CreateExecutorAction,
@@ -11,7 +11,9 @@ from strategy_framework.primitives.actions import (
     UpdateExecutorAction,
 )
 from strategy_framework.primitives.triple_barrier import TripleBarrierConfig
-from strategy_framework.protocols.order import TrackedOrderProtocol
+
+if TYPE_CHECKING:
+    from strategy_framework.protocols.order import TrackedOrderProtocol
 
 
 class ConfigFactory:
