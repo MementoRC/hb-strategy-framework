@@ -8,11 +8,10 @@ All values exposed as @property (not methods as in hummingbot).
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 if TYPE_CHECKING:
-    from strategy_framework.primitives.enums import TradeType
-    from strategy_framework.protocols.composites import PnLHostProtocol
+    from strategy_framework.protocols.composites import PnLHostProtocol, PnLProtocol
 
 
 class PNLCalculatorMixin:
@@ -38,7 +37,7 @@ class PNLCalculatorMixin:
     """
 
     @property
-    def trade_pnl_pct(self: PnLHostProtocol) -> Decimal:  # type: ignore[misc]
+    def trade_pnl_pct(self: PnLHostProtocol) -> Decimal:
         """PnL percentage excluding fees.
 
         BUY:  (close - entry) / entry
@@ -54,26 +53,27 @@ class PNLCalculatorMixin:
         return (self.entry_price - self.close_price) / self.entry_price
 
     @property
-    def trade_pnl_quote(self: PnLHostProtocol) -> Decimal:  # type: ignore[misc]
+    def trade_pnl_quote(self: PnLHostProtocol) -> Decimal:
         """PnL in quote currency excluding fees."""
-        return self.trade_pnl_pct * self.open_filled_amount_quote
+        return cast("PnLProtocol", self).trade_pnl_pct * self.open_filled_amount_quote
 
     @property
-    def cum_fees_quote(self: PnLHostProtocol) -> Decimal:  # type: ignore[misc]
+    def cum_fees_quote(self: PnLHostProtocol) -> Decimal:
         """Cumulative fees in quote currency."""
         return self.cum_fees_raw
 
     @property
-    def net_pnl_quote(self: PnLHostProtocol) -> Decimal:  # type: ignore[misc]
+    def net_pnl_quote(self: PnLHostProtocol) -> Decimal:
         """Net PnL in quote currency after fees."""
-        return self.trade_pnl_quote - self.cum_fees_quote
+        pnl = cast("PnLProtocol", self)
+        return pnl.trade_pnl_quote - pnl.cum_fees_quote
 
     @property
-    def net_pnl_pct(self: PnLHostProtocol) -> Decimal:  # type: ignore[misc]
+    def net_pnl_pct(self: PnLHostProtocol) -> Decimal:
         """Net PnL percentage after fees.
 
         Returns 0 if open_filled_amount_quote is 0 (no fill yet).
         """
         if self.open_filled_amount_quote <= Decimal("0"):
             return Decimal("0")
-        return self.net_pnl_quote / self.open_filled_amount_quote
+        return cast("PnLProtocol", self).net_pnl_quote / self.open_filled_amount_quote

@@ -23,7 +23,7 @@ class BalanceValidationMixin:
     """
 
     def validate_balance(
-        self: MarketAccessProtocol,  # type: ignore[misc]
+        self: MarketAccessProtocol,
         currency: str,
         amount: Decimal,
     ) -> bool:

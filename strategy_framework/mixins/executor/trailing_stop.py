@@ -10,10 +10,11 @@ BarrierControlProtocol.
 
 from __future__ import annotations
 
-from decimal import Decimal
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from decimal import Decimal
+
     from strategy_framework.protocols.composites import BarrierControlProtocol
 
 
@@ -48,15 +49,15 @@ class TrailingStopMixin:
     Calling _init_trailing_stop() twice resets state (safe in diamond MRO).
     """
 
-    def _init_trailing_stop(self: BarrierControlProtocol) -> None:  # type: ignore[misc]
+    def _init_trailing_stop(self: BarrierControlProtocol) -> None:
         """Initialize trailing stop state. Call from __init__ after super().__init__()."""
         self._trailing_stop_trigger_pct: Decimal | None = None  # type: ignore[attr-defined]
         self._trailing_stop_activated: bool = False  # type: ignore[attr-defined]
         self._trailing_stop_triggered: bool = False  # type: ignore[attr-defined]
 
     def update_trailing_stop(
-        self: BarrierControlProtocol,  # type: ignore[misc]
-        current_price: Decimal,  # noqa: ARG002 — reserved for price-based future variant
+        self: BarrierControlProtocol,
+        current_price: Decimal,
     ) -> None:
         """Advance the trailing stop ratchet based on current PnL.
 
@@ -79,21 +80,21 @@ class TrailingStopMixin:
             return
 
         # Already activated — check fire condition
-        if pnl_pct < self._trailing_stop_trigger_pct:  # type: ignore[operator]
+        if pnl_pct < self._trailing_stop_trigger_pct:  # type: ignore[attr-defined]
             self._trailing_stop_triggered = True  # type: ignore[attr-defined]
             return
 
         # Ratchet: advance trigger floor if PnL has risen
         new_trigger = pnl_pct - ts.trailing_delta_pct
-        if new_trigger > self._trailing_stop_trigger_pct:  # type: ignore[operator]
+        if new_trigger > self._trailing_stop_trigger_pct:  # type: ignore[attr-defined]
             self._trailing_stop_trigger_pct = new_trigger  # type: ignore[attr-defined]
 
     @property
-    def trailing_stop_triggered(self: BarrierControlProtocol) -> bool:  # type: ignore[misc]
+    def trailing_stop_triggered(self: BarrierControlProtocol) -> bool:
         """True if the trailing stop condition has been met."""
-        return self._trailing_stop_triggered  # type: ignore[attr-defined]
+        return bool(self._trailing_stop_triggered)  # type: ignore[attr-defined]
 
     @property
-    def trailing_stop_activated(self: BarrierControlProtocol) -> bool:  # type: ignore[misc]
+    def trailing_stop_activated(self: BarrierControlProtocol) -> bool:
         """True if activation threshold has been crossed (ratchet is live)."""
-        return self._trailing_stop_activated  # type: ignore[attr-defined]
+        return bool(self._trailing_stop_activated)  # type: ignore[attr-defined]
