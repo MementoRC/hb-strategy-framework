@@ -39,11 +39,13 @@ class ExecutorConfigBase(StrategyConfigBase):
     controller_type: str = "executor"
 
 
-_VALID_TRANSITIONS: frozenset[tuple[ExecutorState, ExecutorState]] = frozenset({
-    (ExecutorState.IDLE, ExecutorState.ACTIVE),
-    (ExecutorState.ACTIVE, ExecutorState.CLOSING),
-    (ExecutorState.CLOSING, ExecutorState.CLOSED),
-})
+_VALID_TRANSITIONS: frozenset[tuple[ExecutorState, ExecutorState]] = frozenset(
+    {
+        (ExecutorState.IDLE, ExecutorState.ACTIVE),
+        (ExecutorState.ACTIVE, ExecutorState.CLOSING),
+        (ExecutorState.CLOSING, ExecutorState.CLOSED),
+    }
+)
 
 
 class ExecutorBase:
@@ -64,9 +66,7 @@ class ExecutorBase:
 
     def _transition(self, target: ExecutorState) -> None:
         if (self._state, target) not in _VALID_TRANSITIONS:
-            raise ExecutorStateError(
-                f"Invalid transition: {self._state.name} → {target.name}"
-            )
+            raise ExecutorStateError(f"Invalid transition: {self._state.name} → {target.name}")
         self._state = target
 
     # ------------------------------------------------------------------ #
