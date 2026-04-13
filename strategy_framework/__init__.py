@@ -31,6 +31,7 @@ from strategy_framework.primitives import (
     CandleData,
     CloseType,
     CreateExecutorAction,
+    ExecutorNotification,
     OrderBookEntry,
     OrderBookSnapshot,
     OrderType,
@@ -43,6 +44,9 @@ from strategy_framework.primitives import (
     TripleBarrierConfig,
     UpdateExecutorAction,
 )
+
+# Orchestrator
+from strategy_framework.orchestrator import ExecutorManager, SimpleEventBus, StrategyOrchestrator
 
 # Protocols
 from strategy_framework.protocols.composites import (
@@ -59,6 +63,8 @@ from strategy_framework.protocols.controller import ControllerProtocol
 from strategy_framework.protocols.executor import ExecutorProtocol
 from strategy_framework.protocols.market import MarketAccessProtocol
 from strategy_framework.protocols.market_data import MarketDataProtocol
+from strategy_framework.protocols.event_bus import EventBusProtocol
+from strategy_framework.protocols.orchestrator import OrchestratorProtocol
 from strategy_framework.protocols.order import TrackedOrderProtocol
 from strategy_framework.protocols.trading_rules import TradingRulesProtocol
 
@@ -80,9 +86,15 @@ __all__ = [
     "ShutdownMixin",
     "TrailingStopMixin",
     # Primitives
+    # Orchestrator
+    "ExecutorManager",
+    "SimpleEventBus",
+    "StrategyOrchestrator",
+    # Primitives
     "CandleData",
     "CloseType",
     "CreateExecutorAction",
+    "ExecutorNotification",
     "OrderBookEntry",
     "OrderBookSnapshot",
     "OrderType",
@@ -107,6 +119,8 @@ __all__ = [
     "PnLProtocol",
     "RetryHostProtocol",
     "RetryProtocol",
+    "EventBusProtocol",
+    "OrchestratorProtocol",
     "TrackedOrderProtocol",
     "TradingRulesProtocol",
     "UpdatableConfigProtocol",
