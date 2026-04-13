@@ -28,13 +28,17 @@ from strategy_framework.mixins.executor import (
 
 # Primitives
 from strategy_framework.primitives import (
+    CandleData,
     CloseType,
     CreateExecutorAction,
+    OrderBookEntry,
+    OrderBookSnapshot,
     OrderType,
     PercentData,
     RunnableStatus,
     StopExecutorAction,
     TradeType,
+    TradingRules,
     TrailingStop,
     TripleBarrierConfig,
     UpdateExecutorAction,
@@ -54,7 +58,9 @@ from strategy_framework.protocols.config import ConfigProtocol, UpdatableConfigP
 from strategy_framework.protocols.controller import ControllerProtocol
 from strategy_framework.protocols.executor import ExecutorProtocol
 from strategy_framework.protocols.market import MarketAccessProtocol
+from strategy_framework.protocols.market_data import MarketDataProtocol
 from strategy_framework.protocols.order import TrackedOrderProtocol
+from strategy_framework.protocols.trading_rules import TradingRulesProtocol
 
 __all__ = [
     "__version__",
@@ -74,13 +80,17 @@ __all__ = [
     "ShutdownMixin",
     "TrailingStopMixin",
     # Primitives
+    "CandleData",
     "CloseType",
     "CreateExecutorAction",
+    "OrderBookEntry",
+    "OrderBookSnapshot",
     "OrderType",
     "PercentData",
     "RunnableStatus",
     "StopExecutorAction",
     "TradeType",
+    "TradingRules",
     "TrailingStop",
     "TripleBarrierConfig",
     "UpdateExecutorAction",
@@ -91,12 +101,14 @@ __all__ = [
     "ControllerProtocol",
     "ExecutorProtocol",
     "MarketAccessProtocol",
+    "MarketDataProtocol",
     "OrderTrackingProtocol",
     "PnLHostProtocol",
     "PnLProtocol",
     "RetryHostProtocol",
     "RetryProtocol",
     "TrackedOrderProtocol",
+    "TradingRulesProtocol",
     "UpdatableConfigProtocol",
     # Config
     "StrategyConfigBase",

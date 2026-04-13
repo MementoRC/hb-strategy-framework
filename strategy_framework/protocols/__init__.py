@@ -16,7 +16,9 @@ from strategy_framework.protocols.market import (
     MarketAccessProtocol,
     PlaceOrderSignature,
 )
+from strategy_framework.protocols.market_data import MarketDataProtocol
 from strategy_framework.protocols.order import TrackedOrderProtocol
+from strategy_framework.protocols.trading_rules import TradingRulesProtocol
 
 __all__ = [
     "BarrierControlProtocol",
@@ -32,6 +34,8 @@ __all__ = [
     "PnLProtocol",
     "RetryProtocol",
     "ShutdownProtocol",
+    "MarketDataProtocol",
     "TrackedOrderProtocol",
+    "TradingRulesProtocol",
     "UpdatableConfigProtocol",
 ]
