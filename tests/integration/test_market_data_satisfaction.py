@@ -1,4 +1,5 @@
 """Integration test: verify a mock MarketData implementation satisfies the protocol."""
+
 from decimal import Decimal
 
 import pytest
@@ -30,9 +31,7 @@ class MockMarketData:
             asks=[OrderBookEntry(price=self._mid_price + spread / 2, quantity=Decimal("10"))],
         )
 
-    async def get_candles(
-        self, trading_pair: str, interval: str, limit: int
-    ) -> list[CandleData]:
+    async def get_candles(self, trading_pair: str, interval: str, limit: int) -> list[CandleData]:
         return [
             CandleData(
                 timestamp=i * 60_000,

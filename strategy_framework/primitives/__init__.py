@@ -6,14 +6,17 @@ from strategy_framework.primitives.actions import (
     StoreExecutorAction,
     UpdateExecutorAction,
 )
+from strategy_framework.primitives.candle import CandleData
 from strategy_framework.primitives.enums import (
     CloseType,
     OrderType,
     RunnableStatus,
     TradeType,
 )
-from strategy_framework.primitives.candle import CandleData
-from strategy_framework.primitives.order_book import OrderBookEntry, OrderBookSnapshot
+from strategy_framework.primitives.order_book import (
+    OrderBookEntry,
+    OrderBookSnapshot,
+)
 from strategy_framework.primitives.percent import PercentData
 from strategy_framework.primitives.trading_rules import TradingRules
 from strategy_framework.primitives.trailing_stop import TrailingStop

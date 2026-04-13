@@ -1,7 +1,8 @@
 """Order book snapshot primitive."""
+
 from __future__ import annotations
 
-from decimal import Decimal
+from decimal import Decimal  # noqa: TC003
 
 from pydantic import BaseModel, ConfigDict
 

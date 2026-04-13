@@ -1,4 +1,5 @@
 """Trading rules primitive — exchange constraints for a trading pair."""
+
 from __future__ import annotations
 
 from decimal import Decimal

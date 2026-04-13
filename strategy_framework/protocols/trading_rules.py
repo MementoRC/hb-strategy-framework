@@ -1,10 +1,13 @@
 """Trading rules protocol — order sizing and price quantization."""
+
 from __future__ import annotations
 
-from decimal import Decimal
-from typing import Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
-from strategy_framework.primitives.trading_rules import TradingRules
+if TYPE_CHECKING:
+    from decimal import Decimal
+
+    from strategy_framework.primitives.trading_rules import TradingRules
 
 
 @runtime_checkable

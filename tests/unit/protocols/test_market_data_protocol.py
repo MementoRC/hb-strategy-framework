@@ -1,4 +1,5 @@
 """Tests for MarketDataProtocol structural typing."""
+
 from decimal import Decimal
 
 import pytest
@@ -21,9 +22,7 @@ class ConcreteMarketData:
             asks=[OrderBookEntry(price=Decimal("101"), quantity=Decimal("5"))],
         )
 
-    async def get_candles(
-        self, trading_pair: str, interval: str, limit: int
-    ) -> list[CandleData]:
+    async def get_candles(self, trading_pair: str, interval: str, limit: int) -> list[CandleData]:
         return [
             CandleData(
                 timestamp=1700000000000,

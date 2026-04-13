@@ -1,4 +1,5 @@
 """Tests for CandleData frozen model."""
+
 from decimal import Decimal
 
 import pytest
@@ -34,7 +35,7 @@ class TestCandleData:
             close=Decimal("103"),
             volume=Decimal("1500"),
         )
-        with pytest.raises(Exception):
+        with pytest.raises((AttributeError, ValueError)):
             candle.open = Decimal("999")
 
     def test_coerces_string_to_decimal(self):

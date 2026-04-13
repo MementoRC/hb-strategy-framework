@@ -1,7 +1,6 @@
 """Tests for TradingRulesProtocol structural typing."""
-from decimal import Decimal
 
-import pytest
+from decimal import Decimal
 
 from strategy_framework.primitives.trading_rules import TradingRules
 from strategy_framework.protocols.trading_rules import TradingRulesProtocol

@@ -1,4 +1,5 @@
 """Tests for TradingRules frozen model."""
+
 from decimal import Decimal
 
 import pytest
@@ -36,7 +37,7 @@ class TestTradingRules:
 
     def test_frozen(self):
         rules = TradingRules(trading_pair="BTC-USDT")
-        with pytest.raises(Exception):
+        with pytest.raises((AttributeError, ValueError)):
             rules.trading_pair = "ETH-USDT"
 
     def test_coerces_strings(self):

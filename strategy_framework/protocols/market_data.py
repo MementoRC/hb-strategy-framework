@@ -1,11 +1,14 @@
 """Market data protocol — candles, orderbook, prices."""
+
 from __future__ import annotations
 
-from decimal import Decimal
-from typing import Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
-from strategy_framework.primitives.candle import CandleData
-from strategy_framework.primitives.order_book import OrderBookSnapshot
+if TYPE_CHECKING:
+    from decimal import Decimal
+
+    from strategy_framework.primitives.candle import CandleData
+    from strategy_framework.primitives.order_book import OrderBookSnapshot
 
 
 @runtime_checkable
@@ -25,8 +28,6 @@ class MarketDataProtocol(Protocol):
         """Get a point-in-time snapshot of the order book."""
         ...
 
-    async def get_candles(
-        self, trading_pair: str, interval: str, limit: int
-    ) -> list[CandleData]:
+    async def get_candles(self, trading_pair: str, interval: str, limit: int) -> list[CandleData]:
         """Get recent OHLCV candles for a trading pair."""
         ...

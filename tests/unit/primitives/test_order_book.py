@@ -1,4 +1,5 @@
 """Tests for OrderBookSnapshot frozen model."""
+
 from decimal import Decimal
 
 import pytest
@@ -16,7 +17,7 @@ class TestOrderBookEntry:
 
     def test_frozen(self) -> None:
         entry = OrderBookEntry(price=Decimal("100"), quantity=Decimal("10"))
-        with pytest.raises(Exception):
+        with pytest.raises((AttributeError, ValueError)):
             entry.price = Decimal("999")  # type: ignore[misc]
 
     def test_coerces_strings(self) -> None:
@@ -41,7 +42,7 @@ class TestOrderBookSnapshot:
 
     def test_frozen(self) -> None:
         snap = OrderBookSnapshot(timestamp=0, bids=[], asks=[])
-        with pytest.raises(Exception):
+        with pytest.raises((AttributeError, ValueError)):
             snap.timestamp = 999  # type: ignore[misc]
 
     def test_empty_book(self) -> None:
