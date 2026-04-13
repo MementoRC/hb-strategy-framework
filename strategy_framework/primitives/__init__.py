@@ -13,6 +13,7 @@ from strategy_framework.primitives.enums import (
     RunnableStatus,
     TradeType,
 )
+from strategy_framework.primitives.notification import ExecutorNotification
 from strategy_framework.primitives.order_book import (
     OrderBookEntry,
     OrderBookSnapshot,
@@ -26,6 +27,7 @@ __all__ = [
     "CandleData",
     "CloseType",
     "CreateExecutorAction",
+    "ExecutorNotification",
     "OrderBookEntry",
     "OrderBookSnapshot",
     "OrderType",
