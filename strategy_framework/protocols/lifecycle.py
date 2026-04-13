@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Protocol
+from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
 if TYPE_CHECKING:
     from decimal import Decimal
@@ -10,6 +10,7 @@ if TYPE_CHECKING:
     from strategy_framework.primitives.enums import CloseType
 
 
+@runtime_checkable
 class ShutdownProtocol(Protocol):
     """Contract for graceful shutdown behavior."""
 
@@ -23,6 +24,7 @@ class ShutdownProtocol(Protocol):
         ...
 
 
+@runtime_checkable
 class BarrierProtocol(Protocol):
     """Contract for barrier evaluation behavior."""
 
