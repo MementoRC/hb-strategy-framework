@@ -1,9 +1,12 @@
 """StubExecutor — minimal executor for testing ExecutorManager."""
+
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from strategy_framework.primitives.notification import ExecutorNotification
     from strategy_framework.protocols.market import MarketAccessProtocol
 

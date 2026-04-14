@@ -1,21 +1,22 @@
 """StrategyOrchestrator — wires controllers, executors, and market protocols."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from strategy_framework.orchestrator.executor_manager import ExecutorManager
+from strategy_framework.primitives.actions import (
+    CreateExecutorAction,  # noqa: TC001 — isinstance() check
+    StopExecutorAction,  # noqa: TC001 — isinstance() check
+    _ExecutorAction,
+)
+from strategy_framework.primitives.enums import RunnableStatus  # noqa: TC001 — runtime value access
+
 if TYPE_CHECKING:
     from strategy_framework.primitives.notification import ExecutorNotification
     from strategy_framework.protocols.event_bus import EventBusProtocol
+    from strategy_framework.protocols.market import MarketAccessProtocol
     from strategy_framework.protocols.market_data import MarketDataProtocol
-
-from strategy_framework.orchestrator.executor_manager import ExecutorManager
-from strategy_framework.primitives.actions import (
-    CreateExecutorAction,
-    StopExecutorAction,
-    _ExecutorAction,
-)
-from strategy_framework.primitives.enums import RunnableStatus
-from strategy_framework.protocols.market import MarketAccessProtocol
 
 
 class StrategyOrchestrator:

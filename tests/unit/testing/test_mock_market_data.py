@@ -1,4 +1,5 @@
 """Tests for MockMarketData."""
+
 from __future__ import annotations
 
 from decimal import Decimal
@@ -6,7 +7,7 @@ from decimal import Decimal
 import pytest
 
 from strategy_framework.primitives.candle import CandleData
-from strategy_framework.primitives.order_book import OrderBookSnapshot, OrderBookEntry
+from strategy_framework.primitives.order_book import OrderBookEntry, OrderBookSnapshot
 from strategy_framework.protocols.market_data import MarketDataProtocol
 from strategy_framework.testing.mock_market_data import MockMarketData
 
@@ -51,8 +52,12 @@ async def test_get_candles():
     mock = MockMarketData()
     candles = [
         CandleData(
-            timestamp=1000, open=Decimal("100"), high=Decimal("105"),
-            low=Decimal("98"), close=Decimal("102"), volume=Decimal("10"),
+            timestamp=1000,
+            open=Decimal("100"),
+            high=Decimal("105"),
+            low=Decimal("98"),
+            close=Decimal("102"),
+            volume=Decimal("10"),
         )
     ]
     mock.set_candles("BTC-USDT", "1m", candles)

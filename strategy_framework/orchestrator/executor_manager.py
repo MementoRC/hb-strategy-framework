@@ -1,15 +1,18 @@
 """ExecutorManager — lifecycle management for strategy executors."""
+
 from __future__ import annotations
 
 import uuid
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
+
+from strategy_framework.primitives.enums import RunnableStatus  # noqa: TC001 — runtime value access
 
 if TYPE_CHECKING:
-    from strategy_framework.primitives.notification import ExecutorNotification
+    from collections.abc import Callable
 
-from strategy_framework.primitives.actions import CreateExecutorAction, StopExecutorAction
-from strategy_framework.primitives.enums import RunnableStatus
-from strategy_framework.protocols.market import MarketAccessProtocol
+    from strategy_framework.primitives.actions import CreateExecutorAction
+    from strategy_framework.primitives.notification import ExecutorNotification
+    from strategy_framework.protocols.market import MarketAccessProtocol
 
 
 class ExecutorManager:
@@ -55,10 +58,7 @@ class ExecutorManager:
         raise KeyError(f"Unknown executor: {executor_id}")
 
     def get_active(self, controller_id: str) -> list[str]:
-        return [
-            eid for eid, (_, cid) in self._active.items()
-            if cid == controller_id
-        ]
+        return [eid for eid, (_, cid) in self._active.items() if cid == controller_id]
 
     def cleanup_completed(self) -> list[ExecutorNotification]:
         return []

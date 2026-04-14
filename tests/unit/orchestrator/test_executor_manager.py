@@ -1,11 +1,13 @@
 """Tests for ExecutorManager."""
+
 from __future__ import annotations
 
-import pytest
 from unittest.mock import MagicMock
 
+import pytest
+
 from strategy_framework.orchestrator.executor_manager import ExecutorManager
-from strategy_framework.primitives.actions import CreateExecutorAction, StopExecutorAction
+from strategy_framework.primitives.actions import CreateExecutorAction
 from strategy_framework.primitives.enums import RunnableStatus
 
 

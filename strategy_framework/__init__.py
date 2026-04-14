@@ -26,6 +26,9 @@ from strategy_framework.mixins.executor import (
     TrailingStopMixin,
 )
 
+# Orchestrator
+from strategy_framework.orchestrator import ExecutorManager, SimpleEventBus, StrategyOrchestrator
+
 # Primitives
 from strategy_framework.primitives import (
     CandleData,
@@ -45,9 +48,6 @@ from strategy_framework.primitives import (
     UpdateExecutorAction,
 )
 
-# Orchestrator
-from strategy_framework.orchestrator import ExecutorManager, SimpleEventBus, StrategyOrchestrator
-
 # Protocols
 from strategy_framework.protocols.composites import (
     ActivationBoundsProtocol,
@@ -60,10 +60,10 @@ from strategy_framework.protocols.composites import (
 )
 from strategy_framework.protocols.config import ConfigProtocol, UpdatableConfigProtocol
 from strategy_framework.protocols.controller import ControllerProtocol
+from strategy_framework.protocols.event_bus import EventBusProtocol
 from strategy_framework.protocols.executor import ExecutorProtocol
 from strategy_framework.protocols.market import MarketAccessProtocol
 from strategy_framework.protocols.market_data import MarketDataProtocol
-from strategy_framework.protocols.event_bus import EventBusProtocol
 from strategy_framework.protocols.orchestrator import OrchestratorProtocol
 from strategy_framework.protocols.order import TrackedOrderProtocol
 from strategy_framework.protocols.trading_rules import TradingRulesProtocol

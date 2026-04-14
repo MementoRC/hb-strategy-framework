@@ -1,8 +1,13 @@
 """SimpleEventBus — minimal in-memory EventBusProtocol implementation."""
+
 from __future__ import annotations
 
+import contextlib
 from collections import defaultdict
-from typing import Any, Callable
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 class SimpleEventBus:
@@ -20,7 +25,5 @@ class SimpleEventBus:
 
     def unsubscribe(self, event_type: str, handler: Callable) -> None:
         handlers = self._handlers.get(event_type, [])
-        try:
+        with contextlib.suppress(ValueError):
             handlers.remove(handler)
-        except ValueError:
-            pass

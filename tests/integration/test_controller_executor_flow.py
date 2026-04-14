@@ -1,9 +1,8 @@
 """End-to-end proof: controller → orchestrator → executor → notification → controller."""
+
 from __future__ import annotations
 
 from decimal import Decimal
-
-import pytest
 
 from strategy_framework.orchestrator.simple_event_bus import SimpleEventBus
 from strategy_framework.orchestrator.strategy_orchestrator import StrategyOrchestrator

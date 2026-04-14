@@ -1,13 +1,13 @@
 """Tests for OrchestratorAdapter — host-framework composition layer."""
+
 from __future__ import annotations
 
-from unittest.mock import MagicMock, call
+from unittest.mock import MagicMock
 
 import pytest
 
 from strategy_framework.hb_compat import OrchestratorAdapter
 from strategy_framework.orchestrator import StrategyOrchestrator
-
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -40,7 +40,6 @@ class TestOrchestratorAdapterConstruction:
         assert a.orchestrator is not None
 
     def test_no_hummingbot_import(self):
-        import strategy_framework.hb_compat.orchestrator_adapter as mod
         import sys
 
         hb_modules = [k for k in sys.modules if k.startswith("hummingbot")]
@@ -106,7 +105,6 @@ class TestDelegation:
         assert result == []
 
     def test_get_executor_state_unknown_raises(self, adapter):
-        from strategy_framework.orchestrator.executor_manager import ExecutorManager
 
         with pytest.raises(KeyError):
             adapter.get_executor_state("no-such-executor")

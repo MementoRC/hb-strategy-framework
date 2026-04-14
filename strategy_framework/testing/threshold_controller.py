@@ -3,14 +3,19 @@
 Emits CreateExecutorAction when mid_price < buy_threshold.
 NOT a real strategy — just enough to prove the orchestrator loop.
 """
+
 from __future__ import annotations
 
-from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from strategy_framework.primitives.actions import CreateExecutorAction, _ExecutorAction
+from strategy_framework.primitives.actions import (  # noqa: TC001 — runtime usage
+    CreateExecutorAction,
+    _ExecutorAction,
+)
 
 if TYPE_CHECKING:
+    from decimal import Decimal
+
     from strategy_framework.primitives.notification import ExecutorNotification
 
 

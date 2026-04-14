@@ -1,4 +1,5 @@
 """Strategy orchestrator module."""
+
 from __future__ import annotations
 
 from strategy_framework.orchestrator.executor_manager import ExecutorManager

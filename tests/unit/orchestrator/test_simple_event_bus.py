@@ -1,7 +1,6 @@
 """Tests for SimpleEventBus."""
-from __future__ import annotations
 
-import pytest
+from __future__ import annotations
 
 from strategy_framework.orchestrator.simple_event_bus import SimpleEventBus
 from strategy_framework.protocols.event_bus import EventBusProtocol
@@ -37,7 +36,10 @@ def test_publish_unknown_event_is_noop():
 def test_unsubscribe():
     bus = SimpleEventBus()
     received = []
-    handler = lambda p: received.append(p)
+
+    def handler(p):
+        received.append(p)
+
     bus.subscribe("ev", handler)
     bus.unsubscribe("ev", handler)
     bus.publish("ev", {"x": 1})

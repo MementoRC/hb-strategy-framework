@@ -3,6 +3,7 @@
 Host frameworks (e.g. hummingbot) hold an OrchestratorAdapter and call
 evaluate() each tick.  No host-framework types are imported here.
 """
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
@@ -10,10 +11,10 @@ from typing import TYPE_CHECKING, Any
 from strategy_framework.orchestrator import StrategyOrchestrator
 
 if TYPE_CHECKING:
+    from strategy_framework.primitives.enums import RunnableStatus
     from strategy_framework.protocols.event_bus import EventBusProtocol
     from strategy_framework.protocols.market import MarketAccessProtocol
     from strategy_framework.protocols.market_data import MarketDataProtocol
-    from strategy_framework.primitives.enums import RunnableStatus
 
 
 class OrchestratorAdapter:

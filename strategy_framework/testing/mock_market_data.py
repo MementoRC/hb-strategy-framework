@@ -1,10 +1,12 @@
 """MockMarketData — test implementation of MarketDataProtocol."""
+
 from __future__ import annotations
 
-from decimal import Decimal
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from decimal import Decimal
+
     from strategy_framework.primitives.candle import CandleData
     from strategy_framework.primitives.order_book import OrderBookSnapshot
 
