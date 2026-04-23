@@ -4,6 +4,7 @@ platforms = ["linux-64", "osx-arm64", "osx-64", "win-64"]
 
 [dependencies]
 python = ">=3.10,<3.13"
+pandas-ta = ">=0.3.14b"
 pydantic = ">=2"
 
 [feature.dev.dependencies]

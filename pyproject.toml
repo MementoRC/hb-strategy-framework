@@ -9,6 +9,7 @@ description = "Strategy composition framework for Hummingbot — protocol-typed 
 requires-python = ">=3.10"
 license = {text = "Apache-2.0"}
 dependencies = [
+    "pandas-ta>=0.3.14b",
     "pydantic>=2.12.5",
 ]
 
