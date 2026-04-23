@@ -12,10 +12,15 @@ EXPECTED_COLUMNS = {"bb_upper", "bb_lower", "bb_mid", "bbp"}
 
 def make_ohlcv(n: int = 100) -> pd.DataFrame:
     close = 100.0 + np.cumsum(np.random.default_rng(42).normal(0, 1, n))
-    return pd.DataFrame({
-        "open": close - 0.5, "high": close + 1.0,
-        "low": close - 1.0, "close": close, "volume": np.ones(n) * 1000.0,
-    })
+    return pd.DataFrame(
+        {
+            "open": close - 0.5,
+            "high": close + 1.0,
+            "low": close - 1.0,
+            "close": close,
+            "volume": np.ones(n) * 1000.0,
+        }
+    )
 
 
 def test_returns_dataframe_with_expected_columns():
@@ -75,11 +80,15 @@ def test_custom_parameters_accepted():
 
 def test_flat_price_series_bands_collapse():
     """When all close prices are identical, std=0 so bands equal mid."""
-    df = pd.DataFrame({
-        "open": [100.0] * 30, "high": [100.0] * 30,
-        "low": [100.0] * 30, "close": [100.0] * 30,
-        "volume": [1000.0] * 30,
-    })
+    df = pd.DataFrame(
+        {
+            "open": [100.0] * 30,
+            "high": [100.0] * 30,
+            "low": [100.0] * 30,
+            "close": [100.0] * 30,
+            "volume": [1000.0] * 30,
+        }
+    )
     result = bollinger_bands(df, length=20, std=2.0)
     valid = result.dropna(subset=["bb_upper", "bb_lower", "bb_mid"])
     assert not valid.empty

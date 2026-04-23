@@ -12,10 +12,15 @@ EXPECTED_COLUMNS = {"rsi"}
 
 def make_ohlcv(n: int = 100) -> pd.DataFrame:
     close = 100.0 + np.cumsum(np.random.default_rng(42).normal(0, 1, n))
-    return pd.DataFrame({
-        "open": close - 0.5, "high": close + 1.0,
-        "low": close - 1.0, "close": close, "volume": np.ones(n) * 1000.0,
-    })
+    return pd.DataFrame(
+        {
+            "open": close - 0.5,
+            "high": close + 1.0,
+            "low": close - 1.0,
+            "close": close,
+            "volume": np.ones(n) * 1000.0,
+        }
+    )
 
 
 def test_returns_dataframe_with_expected_columns():
@@ -61,10 +66,15 @@ def test_custom_length_accepted():
 def test_all_gains_series_produces_high_rsi():
     """A monotonically rising price has all gains, no losses → RSI near 100."""
     close = [float(100 + i) for i in range(50)]
-    df = pd.DataFrame({
-        "open": close, "high": close, "low": close,
-        "close": close, "volume": [1000.0] * 50,
-    })
+    df = pd.DataFrame(
+        {
+            "open": close,
+            "high": close,
+            "low": close,
+            "close": close,
+            "volume": [1000.0] * 50,
+        }
+    )
     result = rsi(df, length=14)
     valid = result["rsi"].dropna()
     assert not valid.empty

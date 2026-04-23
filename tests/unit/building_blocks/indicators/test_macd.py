@@ -12,10 +12,15 @@ EXPECTED_COLUMNS = {"macd", "macd_signal", "macd_hist"}
 
 def make_ohlcv(n: int = 100) -> pd.DataFrame:
     close = 100.0 + np.cumsum(np.random.default_rng(42).normal(0, 1, n))
-    return pd.DataFrame({
-        "open": close - 0.5, "high": close + 1.0,
-        "low": close - 1.0, "close": close, "volume": np.ones(n) * 1000.0,
-    })
+    return pd.DataFrame(
+        {
+            "open": close - 0.5,
+            "high": close + 1.0,
+            "low": close - 1.0,
+            "close": close,
+            "volume": np.ones(n) * 1000.0,
+        }
+    )
 
 
 def test_returns_dataframe_with_expected_columns():
@@ -70,10 +75,15 @@ def test_custom_parameters_accepted():
 def test_monotonic_uptrend_produces_positive_macd():
     """A steadily rising price gives fast EMA > slow EMA → positive MACD."""
     close = [float(i) for i in range(1, 101)]
-    df = pd.DataFrame({
-        "open": close, "high": close, "low": close,
-        "close": close, "volume": [1000.0] * 100,
-    })
+    df = pd.DataFrame(
+        {
+            "open": close,
+            "high": close,
+            "low": close,
+            "close": close,
+            "volume": [1000.0] * 100,
+        }
+    )
     result = macd(df)
     valid = result["macd"].dropna()
     assert not valid.empty

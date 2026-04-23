@@ -2,6 +2,14 @@
 
 from strategy_framework.__about__ import __version__
 
+# Building blocks
+from strategy_framework.building_blocks.indicators import (
+    bollinger_bands,
+    macd,
+    rsi,
+    supertrend,
+)
+
 # Config
 from strategy_framework.config import StrategyConfigBase
 
@@ -34,6 +42,7 @@ from strategy_framework.primitives import (
     CandleData,
     CloseType,
     CreateExecutorAction,
+    DataRequirement,
     ExecutorNotification,
     OrderBookEntry,
     OrderBookSnapshot,
@@ -94,6 +103,7 @@ __all__ = [
     "CandleData",
     "CloseType",
     "CreateExecutorAction",
+    "DataRequirement",
     "ExecutorNotification",
     "OrderBookEntry",
     "OrderBookSnapshot",
@@ -106,6 +116,11 @@ __all__ = [
     "TrailingStop",
     "TripleBarrierConfig",
     "UpdateExecutorAction",
+    # Building blocks
+    "bollinger_bands",
+    "macd",
+    "rsi",
+    "supertrend",
     # Protocols
     "ActivationBoundsProtocol",
     "BarrierControlProtocol",

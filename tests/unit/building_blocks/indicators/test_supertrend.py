@@ -12,10 +12,15 @@ EXPECTED_COLUMNS = {"supertrend", "supertrend_direction"}
 
 def make_ohlcv(n: int = 100) -> pd.DataFrame:
     close = 100.0 + np.cumsum(np.random.default_rng(42).normal(0, 1, n))
-    return pd.DataFrame({
-        "open": close - 0.5, "high": close + 1.0,
-        "low": close - 1.0, "close": close, "volume": np.ones(n) * 1000.0,
-    })
+    return pd.DataFrame(
+        {
+            "open": close - 0.5,
+            "high": close + 1.0,
+            "low": close - 1.0,
+            "close": close,
+            "volume": np.ones(n) * 1000.0,
+        }
+    )
 
 
 def test_returns_dataframe_with_expected_columns():
@@ -68,11 +73,15 @@ def test_custom_parameters_accepted():
 def test_sustained_uptrend_direction_is_positive():
     """A strongly trending upward price should yield direction=1 in the tail."""
     close = [float(100 + i * 2) for i in range(100)]  # strong uptrend
-    df = pd.DataFrame({
-        "open": [c - 0.1 for c in close], "high": [c + 0.5 for c in close],
-        "low": [c - 0.5 for c in close], "close": close,
-        "volume": [1000.0] * 100,
-    })
+    df = pd.DataFrame(
+        {
+            "open": [c - 0.1 for c in close],
+            "high": [c + 0.5 for c in close],
+            "low": [c - 0.5 for c in close],
+            "close": close,
+            "volume": [1000.0] * 100,
+        }
+    )
     result = supertrend(df, length=7)
     tail_direction = result["supertrend_direction"].dropna().tail(10)
     assert not tail_direction.empty
