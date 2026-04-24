@@ -7,6 +7,7 @@ from strategy_framework.primitives.actions import (
     UpdateExecutorAction,
 )
 from strategy_framework.primitives.candle import CandleData
+from strategy_framework.primitives.data_requirement import DataRequirement
 from strategy_framework.primitives.enums import (
     CloseType,
     OrderType,
@@ -27,6 +28,7 @@ __all__ = [
     "CandleData",
     "CloseType",
     "CreateExecutorAction",
+    "DataRequirement",
     "ExecutorNotification",
     "OrderBookEntry",
     "OrderBookSnapshot",
