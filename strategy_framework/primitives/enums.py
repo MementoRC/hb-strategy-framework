@@ -1,6 +1,6 @@
 """Core enums for the strategy framework."""
 
-from enum import Enum, StrEnum
+from enum import StrEnum
 
 
 class CloseType(StrEnum):
