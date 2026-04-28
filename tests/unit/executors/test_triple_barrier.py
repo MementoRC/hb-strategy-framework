@@ -147,7 +147,7 @@ class TestTripleBarrierExecutorExits:
         ex, market = make_tb_executor(time_limit_s=60)
         ex.start()
         ex.notify_order_filled("o1", Decimal("100"), Decimal("1"))
-        now = datetime.datetime.now(datetime.timezone.utc)
+        now = datetime.datetime.now(datetime.UTC)
         ex._started_at = now
         ex.tick(now + datetime.timedelta(seconds=30))
         assert ex.state == ExecutorState.ACTIVE

@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 name = "hb-strategy-framework"
 dynamic = ["version"]
 description = "Strategy composition framework for Hummingbot — protocol-typed mixins, pipelines, and building blocks"
-requires-python = ">=3.10"
+requires-python = ">=3.12"
 license = {text = "Apache-2.0"}
 dependencies = [
     "pandas-ta>=0.3.14b",
@@ -43,7 +43,7 @@ timeout = 30
 addopts = "--strict-markers --strict-config -v"
 
 [tool.ruff]
-target-version = "py310"
+target-version = "py312"
 line-length = 100
 
 [tool.ruff.lint]
@@ -53,7 +53,7 @@ select = ["E", "F", "I", "W", "B", "UP", "N", "SIM", "TCH"]
 quote-style = "double"
 
 [tool.mypy]
-python_version = "3.10"
+python_version = "3.12"
 strict = true
 warn_return_any = true
 warn_unused_configs = true
