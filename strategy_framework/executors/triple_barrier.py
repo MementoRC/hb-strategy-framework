@@ -134,7 +134,7 @@ class TripleBarrierExecutor(
     def elapsed_seconds(self) -> float:
         if self._started_at is None:
             return 0.0
-        now = datetime.datetime.now(datetime.timezone.utc)
+        now = datetime.datetime.now(datetime.UTC)
         return (now - self._started_at).total_seconds()
 
     # ------------------------------------------------------------------
@@ -152,7 +152,7 @@ class TripleBarrierExecutor(
             # Revert state — executor will activate on a future price update
             self._state = ExecutorState.IDLE
             return
-        self._started_at = datetime.datetime.now(datetime.timezone.utc)
+        self._started_at = datetime.datetime.now(datetime.UTC)
         self._close_price = self._config.entry_price  # initial close = entry target
         self._place_entry_order()
 
@@ -165,7 +165,7 @@ class TripleBarrierExecutor(
         if self._state == ExecutorState.IDLE:
             if self.is_within_activation_bounds(price):  # type: ignore[misc]
                 self._state = ExecutorState.ACTIVE
-                self._started_at = datetime.datetime.now(datetime.timezone.utc)
+                self._started_at = datetime.datetime.now(datetime.UTC)
                 self._close_price = self._config.entry_price
                 self._place_entry_order()
             return

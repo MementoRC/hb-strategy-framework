@@ -1,9 +1,9 @@
 """Core enums for the strategy framework."""
 
-from enum import Enum
+from enum import Enum, StrEnum
 
 
-class CloseType(str, Enum):
+class CloseType(StrEnum):
     """Reason an executor closed its position."""
 
     STOP_LOSS = "stop_loss"
@@ -27,7 +27,7 @@ class CloseType(str, Enum):
         }
 
 
-class TradeType(str, Enum):
+class TradeType(StrEnum):
     """Buy or sell."""
 
     BUY = "buy"
@@ -38,7 +38,7 @@ class TradeType(str, Enum):
         return TradeType.SELL if self == TradeType.BUY else TradeType.BUY
 
 
-class OrderType(str, Enum):
+class OrderType(StrEnum):
     """Order type for placement."""
 
     LIMIT = "limit"
@@ -46,7 +46,7 @@ class OrderType(str, Enum):
     LIMIT_MAKER = "limit_maker"
 
 
-class RunnableStatus(str, Enum):
+class RunnableStatus(StrEnum):
     """Lifecycle status of a runnable (executor or controller)."""
 
     NOT_STARTED = "not_started"

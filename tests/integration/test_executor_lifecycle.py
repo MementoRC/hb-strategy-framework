@@ -72,7 +72,7 @@ class TestFullLifecycle:
         ex.start()
         ex.notify_order_filled("o1", Decimal("100"), Decimal("1"))
         assert ex.state == ExecutorState.ACTIVE
-        t0 = datetime.datetime.now(datetime.timezone.utc)
+        t0 = datetime.datetime.now(datetime.UTC)
         ex._started_at = t0
         ex.tick(t0 + datetime.timedelta(seconds=61))
         assert ex.state == ExecutorState.CLOSED
