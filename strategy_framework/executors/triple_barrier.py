@@ -14,7 +14,7 @@ from __future__ import annotations
 import datetime
 import logging
 from decimal import Decimal
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, override
 
 from strategy_framework.executors.base import ExecutorBase, ExecutorConfigBase, ExecutorState
 from strategy_framework.mixins.executor.activation import ActivationBoundsMixin
@@ -141,6 +141,7 @@ class TripleBarrierExecutor(
     # Lifecycle hooks
     # ------------------------------------------------------------------
 
+    @override
     def on_started(self) -> None:
         """Called after IDLE→ACTIVE transition.
 
@@ -156,6 +157,7 @@ class TripleBarrierExecutor(
         self._close_price = self._config.entry_price  # initial close = entry target
         self._place_entry_order()
 
+    @override
     def on_price_updated(self, price: Decimal) -> None:
         """Handle price tick.
 
@@ -180,6 +182,7 @@ class TripleBarrierExecutor(
             if self.trailing_stop_triggered:  # type: ignore[misc]
                 self.stop(CloseType.TRAILING_STOP)
 
+    @override
     def on_order_filled(self, order_id: str, price: Decimal, amount: Decimal) -> None:
         """Track order fills; check barriers after each fill."""
         if not self._entry_filled:
@@ -193,10 +196,12 @@ class TripleBarrierExecutor(
             self._close_price = price
             self._check_barriers()
 
+    @override
     def on_order_failed(self, order_id: str, reason: str) -> None:
         logger.warning("Order %s failed: %s", order_id, reason)
         self.stop(CloseType.FAILED)
 
+    @override
     def on_stopped(self, close_type: CloseType) -> None:
         """Cancel all tracked open orders on close."""
         for order in list(self._open_orders):
@@ -206,6 +211,7 @@ class TripleBarrierExecutor(
     # Time-limit tick
     # ------------------------------------------------------------------
 
+    @override
     def tick(self, now: datetime.datetime) -> None:
         """Check time-limit barrier. Called by Controller heartbeat or tests."""
         if self._state != ExecutorState.ACTIVE:
