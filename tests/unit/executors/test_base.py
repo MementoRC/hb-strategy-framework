@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from decimal import Decimal
+from typing import override
 
 import pytest
 
@@ -25,9 +26,11 @@ class ConcreteExecutor(ExecutorBase):
         self.started_count: int = 0
         self.stopped_args: list[CloseType] = []
 
+    @override
     def on_started(self) -> None:
         self.started_count += 1
 
+    @override
     def on_stopped(self, close_type: CloseType) -> None:
         self.stopped_args.append(close_type)
 
@@ -109,6 +112,7 @@ class TestExecutorBaseHooksFireBeforeBus:
         market = MockMarketAccess()
 
         class TrackingExecutor(ExecutorBase):
+            @override
             def on_order_filled(self, order_id: str, price: Decimal, amount: Decimal) -> None:
                 order.append("hook")
 
