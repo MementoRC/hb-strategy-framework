@@ -87,4 +87,5 @@ cmake_install.cmake
 .env.test.local
 .env.production.local
 .claude/
+.mcp.json
 logs/
