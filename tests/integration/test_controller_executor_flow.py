@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-from strategy_framework.orchestrator.simple_event_bus import SimpleEventBus
+from strategy_framework.hb_compat.event_bus_adapter import EventBusAdapter
 from strategy_framework.orchestrator.strategy_orchestrator import StrategyOrchestrator
 from strategy_framework.primitives.actions import StopExecutorAction
 from strategy_framework.protocols.market import MarketAccessProtocol
@@ -21,7 +21,7 @@ def _make_setup(
     mock_access = MockMarketAccess(mid_price=price)
     market_data = MockMarketData()
     market_data.set_mid_price("BTC-USDT", price)
-    bus = SimpleEventBus() if use_event_bus else None
+    bus = EventBusAdapter() if use_event_bus else None
     orch = StrategyOrchestrator(
         market_access=mock_access,
         market_data=market_data,

@@ -1,18 +1,18 @@
-"""Tests for SimpleEventBus."""
+"""Tests for EventBusAdapter."""
 
 from __future__ import annotations
 
-from strategy_framework.orchestrator.simple_event_bus import SimpleEventBus
+from strategy_framework.hb_compat.event_bus_adapter import EventBusAdapter
 from strategy_framework.protocols.event_bus import EventBusProtocol
 
 
 def test_satisfies_protocol():
-    bus = SimpleEventBus()
+    bus = EventBusAdapter()
     assert isinstance(bus, EventBusProtocol)
 
 
 def test_subscribe_and_publish():
-    bus = SimpleEventBus()
+    bus = EventBusAdapter()
     received = []
     bus.subscribe("order.filled", lambda p: received.append(p))
     bus.publish("order.filled", {"order_id": "o1"})
@@ -20,7 +20,7 @@ def test_subscribe_and_publish():
 
 
 def test_multiple_handlers_same_event():
-    bus = SimpleEventBus()
+    bus = EventBusAdapter()
     results = []
     bus.subscribe("tick", lambda p: results.append("a"))
     bus.subscribe("tick", lambda p: results.append("b"))
@@ -29,12 +29,12 @@ def test_multiple_handlers_same_event():
 
 
 def test_publish_unknown_event_is_noop():
-    bus = SimpleEventBus()
+    bus = EventBusAdapter()
     bus.publish("nonexistent", {})  # no error
 
 
 def test_unsubscribe():
-    bus = SimpleEventBus()
+    bus = EventBusAdapter()
     received = []
 
     def handler(p):
@@ -47,5 +47,14 @@ def test_unsubscribe():
 
 
 def test_unsubscribe_unknown_handler_is_noop():
-    bus = SimpleEventBus()
+    bus = EventBusAdapter()
     bus.unsubscribe("ev", lambda p: None)  # no error
+
+
+def test_unsubscribe_never_subscribed_event_type_is_noop():
+    bus = EventBusAdapter()
+
+    def handler(p):
+        pass
+
+    bus.unsubscribe("never.subscribed", handler)  # event_type never seen; no error

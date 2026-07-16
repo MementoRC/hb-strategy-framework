@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
-from strategy_framework.orchestrator.simple_event_bus import SimpleEventBus
+from strategy_framework.hb_compat.event_bus_adapter import EventBusAdapter
 from strategy_framework.orchestrator.strategy_orchestrator import StrategyOrchestrator
 from strategy_framework.primitives.actions import CreateExecutorAction, StopExecutorAction
 
@@ -84,7 +84,7 @@ def test_notification_routed_to_controller():
 
 
 def test_event_bus_receives_event_on_stop():
-    bus = SimpleEventBus()
+    bus = EventBusAdapter()
     events = []
     bus.subscribe("executor.stopped", lambda p: events.append(p))
 
