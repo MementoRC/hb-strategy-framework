@@ -23,6 +23,9 @@ from strategy_framework.executors import (
     TripleBarrierExecutorConfig,
 )
 
+# Orchestrator
+from strategy_framework.hb_compat import EventBusAdapter
+
 # Mixins
 from strategy_framework.mixins.executor import (
     ActivationBoundsMixin,
@@ -33,9 +36,7 @@ from strategy_framework.mixins.executor import (
     ShutdownMixin,
     TrailingStopMixin,
 )
-
-# Orchestrator
-from strategy_framework.orchestrator import ExecutorManager, SimpleEventBus, StrategyOrchestrator
+from strategy_framework.orchestrator import ExecutorManager, StrategyOrchestrator
 
 # Primitives
 from strategy_framework.primitives import (
@@ -97,7 +98,7 @@ __all__ = [
     # Primitives
     # Orchestrator
     "ExecutorManager",
-    "SimpleEventBus",
+    "EventBusAdapter",
     "StrategyOrchestrator",
     # Primitives
     "CandleData",
