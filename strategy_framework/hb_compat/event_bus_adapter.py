@@ -26,6 +26,15 @@ class EventBusAdapter:
     def publish(self, event_type: str, payload: dict[str, Any]) -> None:
         self._bus.publish(event_type, payload)
 
+    def emit(self, event_type: str, payload: object) -> None:
+        """Convenience alias for non-dict (e.g. dataclass) payloads.
+
+        Bridges the ``emit(event_type, dataclass_instance)`` call convention used by
+        ``ExecutorBase`` onto the canonical ``event_bus.EventBus``, which accepts any
+        payload type despite :class:`EventBusProtocol` typing ``publish`` to ``dict``.
+        """
+        self._bus.publish(event_type, payload)
+
     def subscribe(self, event_type: str, handler: Callable[[dict[str, Any]], None]) -> None:
         self._subs[(event_type, handler)] = self._bus.subscribe(event_type, handler)
 

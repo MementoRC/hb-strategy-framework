@@ -26,7 +26,7 @@ from strategy_framework.primitives.trailing_stop import TrailingStop  # noqa: TC
 from strategy_framework.primitives.triple_barrier import TripleBarrierConfig  # noqa: TC001
 
 if TYPE_CHECKING:
-    from strategy_framework.executors.events import EventBus
+    from strategy_framework.hb_compat import EventBusAdapter
     from strategy_framework.protocols.market import MarketAccessProtocol
 
 logger = logging.getLogger(__name__)
@@ -66,7 +66,7 @@ class TripleBarrierExecutor(
         self,
         market: MarketAccessProtocol,
         config: TripleBarrierExecutorConfig,
-        bus: EventBus | None = None,
+        bus: EventBusAdapter | None = None,
     ) -> None:
         super().__init__(market=market, config=config, bus=bus)
         self._config: TripleBarrierExecutorConfig  # narrow type for mypy

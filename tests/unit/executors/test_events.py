@@ -5,12 +5,12 @@ from decimal import Decimal
 import pytest
 
 from strategy_framework.executors.events import (
-    EventBus,
     OrderCancelledEvent,
     OrderFailedEvent,
     OrderFilledEvent,
     PriceUpdatedEvent,
 )
+from strategy_framework.hb_compat import EventBusAdapter
 
 
 class TestEventDataclasses:
@@ -41,7 +41,7 @@ class TestEventDataclasses:
 
 class TestEventBus:
     def test_subscribe_and_emit(self) -> None:
-        bus = EventBus()
+        bus = EventBusAdapter()
         received: list[OrderFilledEvent] = []
         bus.subscribe("order.filled", received.append)
         evt = OrderFilledEvent(order_id="o1", price=Decimal("100"), amount=Decimal("1"))
@@ -49,7 +49,7 @@ class TestEventBus:
         assert received == [evt]
 
     def test_unsubscribe(self) -> None:
-        bus = EventBus()
+        bus = EventBusAdapter()
         received: list[object] = []
         handler = received.append
         bus.subscribe("order.filled", handler)
@@ -58,7 +58,7 @@ class TestEventBus:
         assert received == []
 
     def test_multiple_handlers_called_in_order(self) -> None:
-        bus = EventBus()
+        bus = EventBusAdapter()
         order: list[str] = []
         bus.subscribe("ev", lambda _: order.append("first"))
         bus.subscribe("ev", lambda _: order.append("second"))
@@ -66,7 +66,7 @@ class TestEventBus:
         assert order == ["first", "second"]
 
     def test_handler_exception_does_not_stop_others(self) -> None:
-        bus = EventBus()
+        bus = EventBusAdapter()
         reached: list[bool] = []
 
         def bad_handler(_: object) -> None:
@@ -78,9 +78,9 @@ class TestEventBus:
         assert reached == [True]
 
     def test_emit_unknown_event_type_is_noop(self) -> None:
-        bus = EventBus()
+        bus = EventBusAdapter()
         bus.emit("no.subscribers", "payload")  # must not raise
 
     def test_unsubscribe_nonexistent_handler_is_noop(self) -> None:
-        bus = EventBus()
+        bus = EventBusAdapter()
         bus.unsubscribe("ev", lambda _: None)  # must not raise
