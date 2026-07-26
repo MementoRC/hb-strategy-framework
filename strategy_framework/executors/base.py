@@ -5,12 +5,12 @@ from typing import TYPE_CHECKING
 
 from strategy_framework.config.base import StrategyConfigBase
 from strategy_framework.executors.events import (
-    EventBus,
     OrderCancelledEvent,
     OrderFailedEvent,
     OrderFilledEvent,
     PriceUpdatedEvent,
 )
+from strategy_framework.hb_compat import EventBusAdapter
 
 if TYPE_CHECKING:
     import datetime
@@ -53,12 +53,12 @@ class ExecutorBase:
         self,
         market: MarketAccessProtocol,
         config: ExecutorConfigBase,
-        bus: EventBus | None = None,
+        bus: EventBusAdapter | None = None,
     ) -> None:
         self._market = market
         self._config = config
         self._state = ExecutorState.IDLE
-        self.bus: EventBus = bus if bus is not None else EventBus()
+        self.bus: EventBusAdapter = bus if bus is not None else EventBusAdapter()
 
     @property
     def state(self) -> ExecutorState:
