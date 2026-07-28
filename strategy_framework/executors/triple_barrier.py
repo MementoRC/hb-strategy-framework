@@ -12,11 +12,11 @@ Mixin initialization:
 from __future__ import annotations
 
 import datetime
-import logging
 from decimal import Decimal
 from typing import TYPE_CHECKING, override
 
 from strategy_framework.executors.base import ExecutorBase, ExecutorConfigBase, ExecutorState
+from strategy_framework.hb_compat import get_logger
 from strategy_framework.mixins.executor.activation import ActivationBoundsMixin
 from strategy_framework.mixins.executor.order_tracking import OrderTrackingMixin
 from strategy_framework.mixins.executor.pnl import PNLCalculatorMixin
@@ -29,7 +29,7 @@ if TYPE_CHECKING:
     from strategy_framework.hb_compat import EventBusAdapter
     from strategy_framework.protocols.market import MarketAccessProtocol
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class TripleBarrierExecutorConfig(ExecutorConfigBase):
