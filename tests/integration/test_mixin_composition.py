@@ -10,13 +10,14 @@ from __future__ import annotations
 
 from decimal import Decimal
 
+from strategy_framework.hb_compat.common import TradeType
 from strategy_framework.mixins.executor import (
     OrderTrackingMixin,
     PNLCalculatorMixin,
     RetryMixin,
     TrailingStopMixin,
 )
-from strategy_framework.primitives.enums import CloseType, RunnableStatus, TradeType
+from strategy_framework.primitives.enums import CloseType, RunnableStatus
 from strategy_framework.primitives.trailing_stop import TrailingStop
 from strategy_framework.primitives.triple_barrier import TripleBarrierConfig
 from strategy_framework.testing.factories import TrackedOrderFactory

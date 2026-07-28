@@ -23,8 +23,8 @@ from strategy_framework.executors import (
     TripleBarrierExecutorConfig,
 )
 
-# Orchestrator
-from strategy_framework.hb_compat import EventBusAdapter
+# Orchestrator / compat
+from strategy_framework.hb_compat import EventBusAdapter, OrderType, TradeType
 
 # Mixins
 from strategy_framework.mixins.executor import (
@@ -47,11 +47,9 @@ from strategy_framework.primitives import (
     ExecutorNotification,
     OrderBookEntry,
     OrderBookSnapshot,
-    OrderType,
     PercentData,
     RunnableStatus,
     StopExecutorAction,
-    TradeType,
     TradingRules,
     TrailingStop,
     TripleBarrierConfig,
