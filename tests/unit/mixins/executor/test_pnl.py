@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from decimal import Decimal
 
+from strategy_framework.hb_compat.common import TradeType
 from strategy_framework.mixins.executor.pnl import PNLCalculatorMixin
-from strategy_framework.primitives.enums import TradeType
 
 
 def _make_executor(

@@ -17,11 +17,12 @@ from typing import TYPE_CHECKING, override
 
 from strategy_framework.executors.base import ExecutorBase, ExecutorConfigBase, ExecutorState
 from strategy_framework.hb_compat import get_logger
+from strategy_framework.hb_compat.common import TradeType  # noqa: TC001
 from strategy_framework.mixins.executor.activation import ActivationBoundsMixin
 from strategy_framework.mixins.executor.order_tracking import OrderTrackingMixin
 from strategy_framework.mixins.executor.pnl import PNLCalculatorMixin
 from strategy_framework.mixins.executor.trailing_stop import TrailingStopMixin
-from strategy_framework.primitives.enums import CloseType, TradeType
+from strategy_framework.primitives.enums import CloseType
 from strategy_framework.primitives.trailing_stop import TrailingStop  # noqa: TC001
 from strategy_framework.primitives.triple_barrier import TripleBarrierConfig  # noqa: TC001
 
