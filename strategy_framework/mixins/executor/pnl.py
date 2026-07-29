@@ -44,7 +44,7 @@ class PNLCalculatorMixin:
         SELL: (entry - close) / entry
         Returns 0 if entry_price is 0 (no fill yet).
         """
-        from strategy_framework.primitives.enums import TradeType
+        from strategy_framework.hb_compat.common import TradeType
 
         if self.entry_price == Decimal("0"):
             return Decimal("0")

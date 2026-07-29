@@ -9,6 +9,7 @@ description = "Strategy composition framework for Hummingbot — protocol-typed 
 requires-python = ">=3.12"
 license = {text = "Apache-2.0"}
 dependencies = [
+    "hb-data-type-primitives @ git+https://github.com/MementoRC/hb-data-type-primitives.git@4eaf3d555aa99a1f96f113cf5a914491584ff8fc",
     "hb-event-bus @ git+https://github.com/MementoRC/hb-event-bus.git@7e2538f21af739c119dd44f3934a8dc48586254c",
     "pandas-ta>=0.3.14b",
     "pydantic>=2.12.5",
