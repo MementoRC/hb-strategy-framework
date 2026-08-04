@@ -117,13 +117,14 @@ py312 = { features = ["py312", "dev"], solve-group = "py312" }
 test = "pytest tests/"
 test-unit = "pytest tests/unit/"
 test-integration = "pytest tests/integration/"
+coverage = "pytest tests/ --cov=strategy_framework --cov-report=term-missing"
 lint = "ruff check strategy_framework tests"
 format = "ruff format strategy_framework tests"
 format-check = "ruff format --check strategy_framework tests"
 typecheck = "mypy strategy_framework"
 build = "hatchling build"
 quality = { depends-on = ["lint", "format-check"] }
-check = { depends-on = ["quality", "typecheck", "test"] }
+check = { depends-on = ["quality", "typecheck", "coverage"] }
 
 [tool.hummingbot.supersedes]
 module = "hummingbot.strategy_v2"
