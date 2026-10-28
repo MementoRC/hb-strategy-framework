@@ -65,6 +65,11 @@ warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
 
+[[tool.mypy.overrides]]
+# hb-event-bus and hb-logger do not ship py.typed yet (hb-event-bus#23, hb-logger#14). Drop once both publish it.
+module = ["event_bus", "logger"]
+ignore_missing_imports = true
+
 [tool.coverage.run]
 branch = true
 source_pkgs = ["strategy_framework"]
