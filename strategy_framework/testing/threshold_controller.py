@@ -17,6 +17,7 @@ if TYPE_CHECKING:
     from decimal import Decimal
 
     from strategy_framework.primitives.notification import ExecutorNotification
+    from strategy_framework.protocols.market_data import MarketDataProtocol
 
 
 class ThresholdController:
@@ -37,7 +38,7 @@ class ThresholdController:
         self._pending_creations: int = 0
         self.notifications_received: list[ExecutorNotification] = []
 
-    def evaluate(self, market_data) -> list[_ExecutorAction]:
+    def evaluate(self, market_data: MarketDataProtocol) -> list[_ExecutorAction]:
         active_count = len(self._active_executor_ids) + self._pending_creations
         if active_count >= self._max_executors:
             return []
