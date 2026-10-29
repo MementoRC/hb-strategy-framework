@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import pandas as pd
-import pandas_ta as ta  # type: ignore[import-untyped]
+import pandas_ta as ta
 
 
 def bollinger_bands(
@@ -27,7 +27,8 @@ def bollinger_bands(
                       (0 = at lower band, 1 = at upper band).
     """
     result = df.copy()
-    bbands = ta.bbands(result["close"], length=length, std=std)
+    # pandas-ta >=0.4 has no `std` param, so it lands in **kwargs and is ignored (#51).
+    bbands = ta.bbands(result["close"], length=length, std=std)  # type: ignore[arg-type]
     if bbands is None or bbands.empty:
         result["bb_upper"] = float("nan")
         result["bb_lower"] = float("nan")

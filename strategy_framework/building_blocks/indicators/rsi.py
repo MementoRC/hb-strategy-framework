@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import pandas as pd  # noqa: TC002
-import pandas_ta as ta  # type: ignore[import-untyped]
+import pandas_ta as ta
 
 
 def rsi(df: pd.DataFrame, length: int = 14) -> pd.DataFrame:

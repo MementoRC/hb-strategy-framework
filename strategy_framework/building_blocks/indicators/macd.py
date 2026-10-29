@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import pandas as pd  # noqa: TC002 — runtime usage (df.copy(), pd.Series)
-import pandas_ta as ta  # type: ignore[import-untyped]
+import pandas_ta as ta
 
 
 def macd(
