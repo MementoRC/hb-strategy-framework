@@ -27,8 +27,7 @@ def bollinger_bands(
                       (0 = at lower band, 1 = at upper band).
     """
     result = df.copy()
-    # pandas-ta >=0.4 has no `std` param, so it lands in **kwargs and is ignored (#51).
-    bbands = ta.bbands(result["close"], length=length, std=std)  # type: ignore[arg-type]
+    bbands = ta.bbands(result["close"], length=length, lower_std=std, upper_std=std)
     if bbands is None or bbands.empty:
         result["bb_upper"] = float("nan")
         result["bb_lower"] = float("nan")
