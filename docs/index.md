@@ -1,17 +1,16 @@
-# $PACKAGE_NAME
+# hb-strategy-framework
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![Build Status](https://github.com/hummingbot/$PACKAGE_NAME/actions/workflows/build.yml/badge.svg)](https://github.com/hummingbot/$PACKAGE_NAME/actions)
-[![PyPI version](https://badge.fury.io/py/hbot-%24PACKAGE_NAME.svg)](https://badge.fury.io/py/hbot-%24PACKAGE_NAME)
+[![Build Status](https://github.com/MementoRC/hb-strategy-framework/actions/workflows/ci.yml/badge.svg)](https://github.com/MementoRC/hb-strategy-framework/actions)
 
 ## Overview
 
-$PACKAGE_DESCRIPTION
+Strategy framework sub-package for Hummingbot.
 
 ## Installation
 
 ```bash
-pip install hbot-$PACKAGE_NAME
+pip install hb-strategy-framework
 ```
 
 ## Quick Start
@@ -28,12 +27,12 @@ pip install hbot-$PACKAGE_NAME
 
 ## Documentation
 
-For full documentation, visit the [official docs](https://docs.hummingbot.org/$PACKAGE_NAME/).
+For full documentation, visit the [repository](https://github.com/MementoRC/hb-strategy-framework).
 
 ## Contributing
 
-Contributions are welcome! Please see our [contributing guidelines](https://github.com/hummingbot/$PACKAGE_NAME/blob/main/CONTRIBUTING.md) for details.
+Contributions are welcome! Please see our [contributing guidelines](https://github.com/MementoRC/hb-strategy-framework/blob/development/CONTRIBUTING.md) for details.
 
 ## License
 
-This project is licensed under the Apache License 2.0 - see the [LICENSE](https://github.com/hummingbot/$PACKAGE_NAME/blob/main/LICENSE) file for details.
+This project is licensed under the Apache License 2.0 - see the [LICENSE](https://github.com/MementoRC/hb-strategy-framework/blob/development/LICENSE) file for details.

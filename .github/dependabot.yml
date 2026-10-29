@@ -6,7 +6,7 @@ updates:
       interval: "weekly"
     open-pull-requests-limit: 10
     reviewers:
-      - "hummingbot/core-dev"
+      - "MementoRC"
     ignore:
       - dependency-name: "*"
         update-types: ["version-update:semver-patch"]
@@ -17,4 +17,4 @@ updates:
       interval: "monthly"
     open-pull-requests-limit: 5
     reviewers:
-      - "hummingbot/core-dev"
+      - "MementoRC"

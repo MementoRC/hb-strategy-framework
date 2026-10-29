@@ -1,9 +1,9 @@
-site_name: $PACKAGE_NAME Documentation
-site_description: 'Documentation for the $PACKAGE_NAME package'
+site_name: hb-strategy-framework Documentation
+site_description: 'Documentation for the hb-strategy-framework package'
 site_author: 'Hummingbot Team'
 
-repo_name: 'hummingbot/$PACKAGE_NAME'
-repo_url: 'https://github.com/hummingbot/$PACKAGE_NAME'
+repo_name: 'MementoRC/hb-strategy-framework'
+repo_url: 'https://github.com/MementoRC/hb-strategy-framework'
 
 theme:
   name: 'material'
