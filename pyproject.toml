@@ -9,7 +9,7 @@ description = "Strategy composition framework for Hummingbot — protocol-typed 
 requires-python = ">=3.12"
 license = {text = "Apache-2.0"}
 dependencies = [
-    "hb-data-type-primitives @ git+https://github.com/MementoRC/hb-data-type-primitives.git@v0.1.0",
+    "hb-data-type-primitives @ git+https://github.com/MementoRC/hb-data-type-primitives.git@v0.3.0",
     "hb-event-bus @ git+https://github.com/MementoRC/hb-event-bus.git@v0.1.0",
     "hb-logger @ git+https://github.com/MementoRC/hb-logger.git@v0.1.0",
     "pandas-ta>=0.4.71b0",
@@ -67,8 +67,8 @@ warn_unused_configs = true
 disallow_untyped_defs = true
 
 [[tool.mypy.overrides]]
-# hb-data-type-primitives, hb-event-bus and hb-logger ship py.typed on development but not in any release tag yet. Drop once the pins move to tags that include it.
-module = ["data_type_primitives.*", "event_bus", "logger"]
+# hb-event-bus and hb-logger ship py.typed on development but not in any release tag yet. Drop once their pins move to tags that include it.
+module = ["event_bus", "logger"]
 ignore_missing_imports = true
 
 [tool.coverage.run]
