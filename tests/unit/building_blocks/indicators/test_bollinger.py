@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
+import pytest
 
 from strategy_framework.building_blocks.indicators.bollinger import bollinger_bands
 
@@ -76,6 +77,20 @@ def test_custom_parameters_accepted():
     df = make_ohlcv(100)
     result = bollinger_bands(df, length=10, std=1.5)
     assert EXPECTED_COLUMNS.issubset(result.columns)
+
+
+def test_std_scales_band_width():
+    """Band width is linear in std (regression for #51)."""
+    df = make_ohlcv(100)
+    narrow = bollinger_bands(df, length=20, std=1.0)
+    wide = bollinger_bands(df, length=20, std=3.0)
+    narrow_width = narrow["bb_upper"] - narrow["bb_lower"]
+    wide_width = wide["bb_upper"] - wide["bb_lower"]
+    valid = narrow_width.notna() & wide_width.notna()
+    assert valid.any()
+    assert (narrow_width[valid] < wide_width[valid]).all()
+    ratio = (narrow_width[valid] / wide_width[valid]).to_numpy()
+    assert ratio == pytest.approx(1 / 3, rel=1e-6)
 
 
 def test_flat_price_series_bands_collapse():
