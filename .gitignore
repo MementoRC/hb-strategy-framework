@@ -74,9 +74,8 @@ cmake_install.cmake
 # Ruff cache
 .ruff_cache/
 
-# Pixi
+# Pixi (pixi.lock is committed: CI installs --locked and check-conda-first gates it)
 .pixi/
-pixi.lock
 
 # Git worktrees
 .worktrees/
