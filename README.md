@@ -35,7 +35,7 @@ pixi run test
 ./setup-dev-env.sh
 
 # Option 3: pip
-pip install -e ".[dev]"
+pip install -e .
 ```
 
 ## Project Structure
