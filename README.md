@@ -33,9 +33,6 @@ pixi run test
 
 # Option 2: Conda + Hatch
 ./setup-dev-env.sh
-
-# Option 3: pip
-pip install -e .
 ```
 
 ## Project Structure
