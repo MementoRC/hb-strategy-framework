@@ -1,5 +1,9 @@
 """Tests for strategy framework enums."""
 
+import pytest
+from data_type_primitives.common import OrderType as CanonicalOrderType
+from data_type_primitives.common import TradeType as CanonicalTradeType
+
 from strategy_framework.primitives.enums import (
     CloseType,
     OrderType,
@@ -41,6 +45,24 @@ class TestOrderType:
         assert OrderType.LIMIT.value == "limit"
         assert OrderType.MARKET.value == "market"
         assert OrderType.LIMIT_MAKER.value == "limit_maker"
+
+
+class TestCanonicalMapping:
+    def test_trade_type_round_trip(self):
+        for member in TradeType:
+            canonical = member.to_canonical()
+            assert isinstance(canonical, CanonicalTradeType)
+            assert TradeType.from_canonical(canonical) is member
+
+    def test_order_type_round_trip(self):
+        for member in OrderType:
+            canonical = member.to_canonical()
+            assert isinstance(canonical, CanonicalOrderType)
+            assert OrderType.from_canonical(canonical) is member
+
+    def test_order_type_from_canonical_unrepresentable_raises(self):
+        with pytest.raises(KeyError):
+            OrderType.from_canonical(CanonicalOrderType.AMM_SWAP)
 
 
 class TestRunnableStatus:

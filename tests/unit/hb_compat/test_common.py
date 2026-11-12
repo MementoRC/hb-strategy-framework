@@ -6,7 +6,25 @@ import pytest
 from data_type_primitives.common import OrderType as CanonicalOrderType
 from data_type_primitives.common import TradeType as CanonicalTradeType
 
+import strategy_framework
+from strategy_framework import primitives
+from strategy_framework.hb_compat import common
 from strategy_framework.hb_compat.common import OrderType, TradeType
+from strategy_framework.primitives import enums
+
+
+class TestIdentity:
+    def test_trade_type_is_primitives_class(self) -> None:
+        assert common.TradeType is enums.TradeType
+
+    def test_order_type_is_primitives_class(self) -> None:
+        assert common.OrderType is enums.OrderType
+
+    def test_package_trade_type_is_primitives_class(self) -> None:
+        assert strategy_framework.TradeType is primitives.TradeType
+
+    def test_package_order_type_is_primitives_class(self) -> None:
+        assert strategy_framework.OrderType is primitives.OrderType
 
 
 class TestTradeType:
