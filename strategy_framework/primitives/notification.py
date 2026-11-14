@@ -1,18 +1,10 @@
-"""ExecutorNotification — callback data from executors to orchestrator."""
+"""Re-export shim; implementation lives in data_type_primitives.notification.
+
+See hb-strategy-framework#73.
+"""
 
 from __future__ import annotations
 
-from typing import Any
+from data_type_primitives.notification import ExecutorNotification
 
-from pydantic import BaseModel, ConfigDict
-
-
-class ExecutorNotification(BaseModel):
-    """Immutable notification emitted by an executor on state change."""
-
-    model_config = ConfigDict(frozen=True)
-
-    executor_id: str
-    controller_id: str
-    event: str  # "started" | "completed" | "stopped" | "failed"
-    data: dict[str, Any] = {}
+__all__ = ["ExecutorNotification"]
