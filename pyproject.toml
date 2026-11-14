@@ -138,8 +138,7 @@ build = "hatchling build"
 check-conda-first = "python scripts/check_conda_first.py"
 lint-boundaries = "lint-imports"
 bandit-security = "bandit -c pyproject.toml -r strategy_framework --severity-level medium --confidence-level medium"
-# dnspython 2.9.1 CVE-2026-128089: remove once conda-forge ships dnspython>=2.9.2 (mirrors hb-data-type-primitives#45)
-safety-check = "pip-audit --skip-editable --ignore-vuln CVE-2026-128089"
+safety-check = "pip-audit --skip-editable"
 quality = { depends-on = ["check-conda-first", "lint", "format-check", "typecheck", "lint-boundaries", "bandit-security"] }
 check = { depends-on = ["check-conda-first", "quality", "coverage"] }
 
