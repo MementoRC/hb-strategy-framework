@@ -8,9 +8,11 @@ from typing import TYPE_CHECKING
 import pytest
 from data_type_primitives import OrderState
 
-from strategy_framework.linked_orders.errors import LinkedGroupNotFoundError
+from strategy_framework.linked_orders.errors import GroupInvariantError, LinkedGroupNotFoundError
 from strategy_framework.linked_orders.events import LinkedEventKind as K
-from strategy_framework.linked_orders.types import CancelOutcome, LegStatus, OcoHandle
+from strategy_framework.linked_orders.manager import _Group
+from strategy_framework.linked_orders.state import Transition, new_group
+from strategy_framework.linked_orders.types import CancelOutcome, LegSnapshot, LegStatus, OcoHandle
 from strategy_framework.linked_orders.types import DegradedReason as R
 from strategy_framework.linked_orders.types import GroupState as S
 from tests.unit.linked_orders.builders import bracket_spec, oco_spec
@@ -88,6 +90,29 @@ async def test_cancel_during_entry_working_never_places_exits(
 async def test_cancel_unknown_handle_raises(manager: EmulatedLinkedOrderManager) -> None:
     with pytest.raises(LinkedGroupNotFoundError):
         await manager.cancel_linked(OcoHandle("77", (), S.ARMED))
+
+
+async def test_cancel_group_without_legs_raises_invariant_error(
+    manager: EmulatedLinkedOrderManager, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # request_cancel seals every unplaced leg, so this state is unreachable through the API.
+    manager._groups[7] = _Group(new_group(7, TARGET, oco_spec(), 0.0))  # noqa: SLF001
+    monkeypatch.setattr(
+        "strategy_framework.linked_orders.manager.request_cancel",
+        lambda record, _now, *, closed: Transition(record),
+    )
+    with pytest.raises(GroupInvariantError):
+        await manager.cancel_linked(OcoHandle("7", (), S.PLACING))
+
+
+async def test_negative_snapshot_fill_is_rejected(
+    manager: EmulatedLinkedOrderManager, venue: FakeEmulationVenue
+) -> None:
+    bad = LegSnapshot("fake-1", None, OS.OPEN, D(-1))
+    good = LegSnapshot("fake-1", None, OS.OPEN, D(0))
+    venue.script_get(bad, good)
+    assert await manager._safe_get(TARGET, client_order_id="fake-1") is None  # noqa: SLF001
+    assert await manager._safe_get(TARGET, client_order_id="fake-1") == good  # noqa: SLF001
 
 
 async def test_cancel_while_leg_reply_pending_cancels_on_reply(

@@ -42,6 +42,7 @@ from data_type_primitives import LinkKind, OrderOutcomeUnknownError
 
 from strategy_framework.linked_orders.errors import (
     EmulationNotEnabledError,
+    GroupInvariantError,
     LinkedGroupNotFoundError,
     LinkIdCodecError,
     UnsupportedLegError,
@@ -215,6 +216,8 @@ class EmulatedLinkedOrderManager:
             io = self._commit(group, trans)
         await self._after(group, io)
         rec = group.record
+        if not rec.legs:
+            raise GroupInvariantError(rec.group_id, "cancel_linked on a group with no legs")
         return LinkedCancelOutcome(
             group_id=handle.group_id,
             state=rec.state,
@@ -498,12 +501,27 @@ class EmulatedLinkedOrderManager:
         self, target: str, *, client_order_id: str | None = None, link_tag: LinkTag | None = None
     ) -> LegSnapshot | None:
         try:
-            return await self._venue.get_leg(
+            snapshot = await self._venue.get_leg(
                 target, client_order_id=client_order_id, link_tag=link_tag
             )
         except Exception:
             logger.warning("get_leg failed for %s", client_order_id or link_tag, exc_info=True)
             return None
+        if snapshot is not None and not self._valid_snapshot(
+            snapshot, f"get_leg for {client_order_id or link_tag}"
+        ):
+            return None
+        return snapshot
+
+    @staticmethod
+    def _valid_snapshot(snapshot: LegSnapshot, source: str) -> bool:
+        """A negative fill is venue garbage: reject it as "no information", never as "gone"."""
+        if snapshot.filled < 0:
+            logger.warning(
+                "%s reported a negative fill (%s); snapshot rejected", source, snapshot.filled
+            )
+            return False
+        return True
 
     def _lookup_by_tag_due(self, group: _Group, leg: LegRecord) -> bool:
         return (
@@ -601,6 +619,8 @@ class EmulatedLinkedOrderManager:
                     continue
                 group_id, index = decoded
                 self._next_id = max(self._next_id, group_id + 1)
+                if not self._valid_snapshot(snap, f"list_open_legs for {target}"):
+                    continue  # no information: neither an orphan nor a match
                 group = self._groups.get(group_id)
                 if group is None:
                     orphans.add(group_id)

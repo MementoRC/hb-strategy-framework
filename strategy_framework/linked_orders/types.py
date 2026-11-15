@@ -6,6 +6,9 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import TYPE_CHECKING, Literal
 
+from data_type_primitives import CancelOutcome as CancelOutcome  # noqa: PLC0414  (re-export)
+from data_type_primitives import LinkedCancelOutcome as _DtpLinkedCancelOutcome
+
 if TYPE_CHECKING:
     from decimal import Decimal
 
@@ -82,15 +85,6 @@ class DegradedReason(Enum):
     UNRESOLVED_PAST_GRACE = "unresolved_past_grace"
     EXIT_PLACEMENT_FAILED = "exit_placement_failed"
     LINK_BROKEN = "link_broken"
-
-
-class CancelOutcome(Enum):
-    """Venue answer to a cancel request."""
-
-    CANCELED = "canceled"
-    ALREADY_FILLED = "already_filled"
-    NOT_FOUND = "not_found"
-    UNKNOWN = "unknown"
 
 
 @dataclass(frozen=True)
@@ -170,12 +164,7 @@ class BracketHandle:
     emulated: bool = True
 
 
-@dataclass(frozen=True)
-class LinkedCancelOutcome:
-    """Result of `cancel_linked`."""
+class LinkedCancelOutcome(_DtpLinkedCancelOutcome):
+    """Result of `cancel_linked`: the dtp outcome plus the group's final `GroupState`."""
 
-    group_id: str
     state: GroupState
-    all_legs_terminal: bool
-    residual_filled: Decimal
-    leg_outcomes: tuple[CancelOutcome | None, ...]
