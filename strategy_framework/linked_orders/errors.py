@@ -50,6 +50,14 @@ class LinkIdCodecError(LinkedOrderError):
         self.tag = tag
 
 
+class GroupInvariantError(LinkedOrderError):
+    """An internal invariant of a linked group was violated (a bug, not a caller error)."""
+
+    def __init__(self, group_id: GroupId, detail: str) -> None:
+        super().__init__(f"linked group {group_id} invariant violated: {detail}")
+        self.group_id = group_id
+
+
 class LinkedGroupNotFoundError(LinkedOrderError):
     """No group with this id is known."""
 

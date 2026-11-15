@@ -30,6 +30,7 @@ if TYPE_CHECKING:
     import pytest
 
     from strategy_framework.linked_orders.manager import EmulatedLinkedOrderManager
+    from strategy_framework.linked_orders.types import LegSnapshot
     from strategy_framework.testing.fake_linked_venue import (
         FakeEmulationVenue,
         ManualClock,
@@ -282,6 +283,53 @@ async def test_list_open_failure_is_tolerated(
     fresh = restart(venue, codec, clock, durable_store)
     await fresh.recover([TARGET])
     assert fresh.get_handle("1").state is S.ARMED
+
+
+def _negative_open_list(venue: FakeEmulationVenue, monkeypatch: pytest.MonkeyPatch) -> None:
+    async def negative(_target: str) -> list[LegSnapshot]:
+        return [replace(venue.snapshot(cid), filled=D(-1)) for cid in ("fake-1", "fake-2")]
+
+    monkeypatch.setattr(venue, "list_open_legs", negative)
+
+
+async def test_negative_fill_in_open_list_is_no_information_not_an_orphan(
+    manager: EmulatedLinkedOrderManager,
+    venue: FakeEmulationVenue,
+    codec: StringLinkIdCodec,
+    clock: ManualClock,
+    emitter: RecordingEmitter,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    await manager.place_oco(TARGET, oco_spec())
+    _negative_open_list(venue, monkeypatch)
+    config = LinkedOrderManagerConfig(enabled=True, cancel_orphans=True)
+    fresh = restart(venue, codec, clock, SpyStore(), emitter, config)
+    await fresh.recover([TARGET])
+    assert events(emitter, K.ORPHAN_FOUND) == []
+    assert venue.calls("cancel_leg") == []
+    handle = await fresh.place_oco(TARGET, oco_spec())  # id counter still seeded past the group
+    assert [c[3] for c in venue.calls("place_leg")][-2:] == ["hbl-2-0", "hbl-2-1"]
+    assert handle.state is S.ARMED
+
+
+async def test_negative_fill_in_open_list_does_not_touch_a_stored_group(
+    manager: EmulatedLinkedOrderManager,
+    venue: FakeEmulationVenue,
+    codec: StringLinkIdCodec,
+    clock: ManualClock,
+    durable_store: SpyStore,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    await manager.place_oco(TARGET, oco_spec())
+    stored = durable_store.load_all()[0]
+    legs = (replace(stored.legs[0], client_order_id="other"), stored.legs[1])
+    durable_store.save(replace(stored, legs=legs))
+    _negative_open_list(venue, monkeypatch)
+    fresh = restart(venue, codec, clock, durable_store)
+    await fresh.recover([TARGET])
+    assert R.LINK_BROKEN not in record(fresh).degraded_reasons
+    assert leg(fresh, 1).filled == D(0)
+    assert venue.calls("cancel_leg") == []
 
 
 async def test_orphan_cancel_failure_is_tolerated(

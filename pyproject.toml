@@ -9,8 +9,8 @@ description = "Strategy composition framework for Hummingbot — protocol-typed 
 requires-python = ">=3.12"
 license = {text = "Apache-2.0"}
 dependencies = [
-    # supported range: hb-data-type-primitives >=0.11,<0.12 (a git ref cannot express a range)
-    "hb-data-type-primitives @ git+https://github.com/MementoRC/hb-data-type-primitives.git@v0.11.0",
+    # supported range: hb-data-type-primitives >=0.12,<0.13 (a git ref cannot express a range)
+    "hb-data-type-primitives @ git+https://github.com/MementoRC/hb-data-type-primitives.git@v0.12.0",
     "hb-event-bus @ git+https://github.com/MementoRC/hb-event-bus.git@v0.2.0",
     "hb-logger @ git+https://github.com/MementoRC/hb-logger.git@v0.2.0",
     "pandas-ta>=0.4.71b0",

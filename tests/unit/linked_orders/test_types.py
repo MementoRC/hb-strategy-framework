@@ -5,12 +5,16 @@ from __future__ import annotations
 from decimal import Decimal
 
 import pytest
+from data_type_primitives import CancelOutcome as DtpCancelOutcome
 from data_type_primitives import LegRole, LinkKind, OrderState
+from data_type_primitives import LinkedCancelOutcome as DtpLinkedCancelOutcome
+from pydantic import ValidationError
 
 import strategy_framework
 from strategy_framework.linked_orders import (
     LINKED_GROUP_EVENT,
     BracketHandle,
+    CancelOutcome,
     ClockProtocol,
     GroupRecord,
     GroupState,
@@ -62,8 +66,29 @@ def test_records_are_frozen_hashable_values() -> None:
 def test_handles_default_to_emulated() -> None:
     assert OcoHandle("1", ("a", None), GroupState.ARMED).emulated is True
     assert BracketHandle("1", "e", None, None, GroupState.ENTRY_WORKING).emulated is True
-    out = LinkedCancelOutcome("1", GroupState.CANCELED, True, D(0), (None,))
+    out = LinkedCancelOutcome(
+        group_id="1",
+        state=GroupState.CANCELED,
+        all_legs_terminal=True,
+        residual_filled=D(0),
+        leg_outcomes=(None,),
+    )
     assert out.all_legs_terminal
+
+
+def test_linked_cancel_outcome_extends_dtp_model() -> None:
+    out = LinkedCancelOutcome(
+        group_id="1",
+        state=GroupState.CANCELED,
+        all_legs_terminal=True,
+        residual_filled=D(0),
+        leg_outcomes=(CancelOutcome.CANCELED,),
+    )
+    assert isinstance(out, DtpLinkedCancelOutcome)
+    assert out.state is GroupState.CANCELED
+    with pytest.raises(ValidationError):
+        out.state = GroupState.FAILED  # type: ignore[misc]
+    assert CancelOutcome is DtpCancelOutcome
 
 
 def test_in_memory_store_is_volatile_and_upserts() -> None:
