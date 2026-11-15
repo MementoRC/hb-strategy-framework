@@ -15,6 +15,8 @@ import datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING, override
 
+from data_type_primitives.common import OrderType as CanonicalOrderType
+
 from strategy_framework.executors.base import ExecutorBase, ExecutorConfigBase, ExecutorState
 from strategy_framework.hb_compat import get_logger
 from strategy_framework.hb_compat.common import TradeType  # noqa: TC001
@@ -237,8 +239,8 @@ class TripleBarrierExecutor(
         )  # TODO(plan4): replace with primitives.TrackedOrder
 
         order_id = self._market.place_order(
-            order_type="limit",
-            side=self._config.side.value,
+            order_type=CanonicalOrderType.LIMIT,
+            side=self._config.side.to_canonical(),
             amount=self._config.amount,
             price=self._config.entry_price,
         )

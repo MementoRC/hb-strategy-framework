@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from data_type_primitives.common import OrderType, TradeType
 
 
 class MockMarketAccess:
@@ -22,8 +25,8 @@ class MockMarketAccess:
 
     def place_order(
         self,
-        order_type: str,
-        side: str,
+        order_type: OrderType,
+        side: TradeType,
         amount: Decimal,
         price: Decimal,
     ) -> str:

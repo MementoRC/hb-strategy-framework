@@ -2,6 +2,8 @@
 
 from decimal import Decimal
 
+from data_type_primitives.common import OrderType, TradeType
+
 from strategy_framework.testing.harnesses import ExecutorTestHarness
 from strategy_framework.testing.mock_market import MockMarketAccess
 
@@ -22,6 +24,8 @@ class TestExecutorTestHarness:
 
     def test_place_and_track_order(self):
         harness = ExecutorTestHarness()
-        order_id = harness.market.place_order("limit", "buy", Decimal("1"), Decimal("50000"))
+        order_id = harness.market.place_order(
+            OrderType.LIMIT, TradeType.BUY, Decimal("1"), Decimal("50000")
+        )
         assert len(harness.market.order_history) == 1
         assert order_id.startswith("mock_")

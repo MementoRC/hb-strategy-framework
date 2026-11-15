@@ -13,14 +13,16 @@ from typing import TYPE_CHECKING, Protocol, runtime_checkable
 if TYPE_CHECKING:
     from decimal import Decimal
 
+    from data_type_primitives.common import OrderType, TradeType
+
 
 class PlaceOrderSignature(Protocol):
     """Callable signature for placing an order."""
 
     def __call__(  # pragma: no cover
         self,
-        order_type: str,
-        side: str,
+        order_type: OrderType,
+        side: TradeType,
         amount: Decimal,
         price: Decimal,
     ) -> str:
@@ -56,8 +58,8 @@ class MarketAccessProtocol(Protocol):
 
     def place_order(  # pragma: no cover
         self,
-        order_type: str,
-        side: str,
+        order_type: OrderType,
+        side: TradeType,
         amount: Decimal,
         price: Decimal,
     ) -> str:
