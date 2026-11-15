@@ -7,6 +7,8 @@ from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 if TYPE_CHECKING:
     from decimal import Decimal
 
+    from data_type_primitives.common import OrderType, TradeType
+
     from strategy_framework.primitives.enums import CloseType, RunnableStatus
 
 
@@ -19,8 +21,8 @@ class ExecutorProtocol(Protocol):
 
     def place_order(
         self,
-        order_type: str,
-        side: str,
+        order_type: OrderType,
+        side: TradeType,
         amount: Decimal,
         price: Decimal,
     ) -> str: ...
