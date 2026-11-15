@@ -29,6 +29,7 @@ from strategy_framework.linked_orders.types import (
 if TYPE_CHECKING:
     from strategy_framework.linked_orders.state import Transition
 
+_NEVER_PLACE = {GroupState.TRIGGERED, GroupState.CANCELLING, *OUTCOME_STATES}
 _REGRESSIVE = {
     LegStatus.PENDING_CREATE,
     LegStatus.OPEN,
@@ -48,6 +49,16 @@ def violations(prev: GroupRecord | None, trans: Transition, *, closed: bool = Fa
     out += _i5(new)
     out += _i6_i8(prev, new)
     return out
+
+
+def monotonic_violations(prev: GroupRecord, new: GroupRecord) -> list[str]:
+    """I6 + I8 between two successive records of one group."""
+    return _i6_i8(prev, new)
+
+
+def sibling_fill_violations(new: GroupRecord) -> list[str]:
+    """I5 for one record."""
+    return _i5(new)
 
 
 def _i1(new: GroupRecord, acts: tuple[object, ...]) -> list[str]:
@@ -104,7 +115,13 @@ def _i4_i7(
     out = []
     for act in acts:
         if isinstance(act, PlaceLeg):
-            if not can_place(new):
+            # I4: never after TRIGGERED or a cancel (explicit or rollback); DEGRADED alone is fine.
+            if (
+                (prev is None or not can_place(prev))
+                or new.winner_leg_index is not None
+                or new.cancel_cause is not None
+                or new.state in _NEVER_PLACE
+            ):
                 out.append(f"I4: place_leg while group is {new.state.name}")
             leg = new.legs[act.leg_index]
             if leg.status is not LegStatus.PENDING_CREATE or leg.link_tag is None:

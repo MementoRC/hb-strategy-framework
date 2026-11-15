@@ -18,6 +18,7 @@ from strategy_framework.linked_orders.events import (
     LinkedEventKind,
     LinkedGroupEvent,
 )
+from strategy_framework.linked_orders.manager import EmulatedLinkedOrderManager
 from strategy_framework.linked_orders.protocols import (
     ClockProtocol,
     EmulationVenue,
@@ -46,6 +47,7 @@ __all__ = [
     "CancelOutcome",
     "ClockProtocol",
     "DegradedReason",
+    "EmulatedLinkedOrderManager",
     "EmulationNotEnabledError",
     "EmulationVenue",
     "GroupRecord",

@@ -175,14 +175,59 @@ def test_row15_exit_rejected_degrades_without_retry() -> None:
     assert handle.stop_loss_client_order_id is None  # definitely rejected: no id
 
 
-def test_row15_first_exit_rejected_seals_second_and_closes() -> None:
+def test_row15_first_exit_rejected_still_places_remaining_exit() -> None:
     sim = _bracket_exits_placing().begin(1).reply(1, "reject")
     assert sim.rec.state is S.DEGRADED
-    assert sim.status(2) is LS.NOT_PLACED
+    assert len(sim.rec.legs) == 2  # the stop-loss is NOT sealed: protection wins
+    assert can_place(sim.rec)
+    sim.place(2)
+    assert sim.status(2) is LS.OPEN
+    assert sim.leg(2).placed_amount == D(2)
+    assert not can_place(sim.rec)
+    assert sim.rec.state is S.DEGRADED
+    assert not sim.deleted
     handle = make_handle(sim.rec)
     assert isinstance(handle, BracketHandle)
-    assert handle.stop_loss_client_order_id is None
+    assert handle.take_profit_client_order_id is None
+    assert handle.stop_loss_client_order_id == "c2"
+
+
+def test_row15_both_exits_rejected_closes_degraded() -> None:
+    sim = _bracket_exits_placing().begin(1).reply(1, "reject").begin(2).reply(2, "reject")
+    assert sim.rec.state is S.DEGRADED
+    assert sim.rec.degraded_reasons == {DegradedReason.EXIT_PLACEMENT_FAILED}
+    assert len(sim.events(K.DEGRADED)) == 1
     assert sim.deleted
+
+
+def test_row15_cancel_after_degraded_stops_remaining_exit() -> None:
+    sim = _bracket_exits_placing().begin(1).reply(1, "reject")
+    assert can_place(sim.rec)
+    sim.cancel()
+    assert not can_place(sim.rec)
+    assert sim.status(2) is LS.NOT_PLACED
+
+
+def test_row15_fill_after_degraded_forbids_placing_and_seals() -> None:
+    sim = _bracket_exits_placing().place(1, "unknown")
+    sim.tick(31)
+    assert sim.rec.state is S.DEGRADED
+    assert can_place(sim.rec)
+    sim.snap(1, OS.FILLED, 1)
+    assert sim.rec.winner_leg_index == 1
+    assert not can_place(sim.rec)
+    assert sim.status(2) is LS.NOT_PLACED
+
+
+def test_row15_degraded_by_other_reason_keeps_placing_exits() -> None:
+    sim = _bracket_exits_placing().begin(1)
+    sim.tick(31)
+    assert DegradedReason.UNRESOLVED_PAST_GRACE in sim.rec.degraded_reasons
+    assert sim.rec.state is S.DEGRADED
+    assert can_place(sim.rec)
+    sim.reply(1, "reject")
+    assert DegradedReason.EXIT_PLACEMENT_FAILED in sim.rec.degraded_reasons
+    assert can_place(sim.rec)
 
 
 # ---------------------------------------------------------------- rows 8-10

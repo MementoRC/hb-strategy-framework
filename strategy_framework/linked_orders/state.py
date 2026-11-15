@@ -27,22 +27,18 @@ from strategy_framework.linked_orders.types import (
     DegradedReason,
     GroupRecord,
     GroupState,
+    LegFill,
     LegRecord,
     LegStatus,
     OcoHandle,
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Sequence
 
     from data_type_primitives import LinkedOrderSpec, OrderState
 
-    from strategy_framework.linked_orders.types import (
-        GroupId,
-        LegFill,
-        LegSnapshot,
-        LinkTag,
-    )
+    from strategy_framework.linked_orders.types import GroupId, LegSnapshot, LinkTag
 
 _ZERO = Decimal(0)
 _MAX_PASSES = 8
@@ -159,13 +155,30 @@ def find_leg(record: GroupRecord, client_order_id: str) -> int | None:
     return None
 
 
-def can_place(record: GroupRecord) -> bool:
-    """I4: legs may be submitted only in PLACING / EXITS_PLACING, with no winner or cancel."""
+def _exits_pending(record: GroupRecord) -> bool:
+    """BRACKET whose entry is confirmed filled and which still has exits to submit."""
+    if record.spec.kind is not LinkKind.BRACKET or not record.legs:
+        return False
+    entry = record.legs[0]
     return (
-        record.state in (GroupState.PLACING, GroupState.EXITS_PLACING)
-        and record.winner_leg_index is None
-        and record.cancel_cause is None
+        len(record.legs) < leg_count(record)
+        and is_terminal(entry)
+        and entry.filled > _ZERO
+        and not is_unresolved(entry)
     )
+
+
+def can_place(record: GroupRecord) -> bool:
+    """I4: never place after TRIGGERED or after a cancel (explicit or rollback).
+
+    Legs are submitted in PLACING / EXITS_PLACING. DEGRADED alone does not forbid placing the
+    remaining bracket exits: when one exit is rejected the others still go out (protection wins).
+    """
+    if record.winner_leg_index is not None or record.cancel_cause is not None:
+        return False
+    if record.state in (GroupState.PLACING, GroupState.EXITS_PLACING):
+        return True
+    return record.state is GroupState.DEGRADED and _exits_pending(record)
 
 
 def residual_filled(record: GroupRecord) -> Decimal:
@@ -253,7 +266,7 @@ class _Ctx:
 
     def enter(self, state: GroupState) -> None:
         self.rec = replace(self.rec, state=state)
-        if state not in PLACEMENT_STATES:
+        if state not in PLACEMENT_STATES and not can_place(self.rec):
             self.seal()
 
     def degrade(
@@ -372,7 +385,7 @@ class _Ctx:
         if cause != "user" and any_unresolved(r):
             return
         if cause is None:
-            pool = [i for i in link_indices(r) if i != winner]
+            pool = [i for i in link_indices(r) if i != winner and i < len(r.legs)]
         else:
             pool = list(range(len(r.legs)))
         for i in pool:
@@ -398,6 +411,8 @@ class _Ctx:
             self._maybe_finish_cancel()
         elif state is GroupState.ARMED:
             self._link_broken()
+        elif state is GroupState.DEGRADED and not can_place(self.rec):
+            self.seal()
 
     def _all_submitted(self) -> bool:
         r = self.rec
@@ -532,7 +547,7 @@ def begin_leg(record: GroupRecord, leg_index: int, link_tag: LinkTag, now: float
         raise ValueError(msg)
     spec_leg = record.spec.ordered_legs()[leg_index]
     amount = spec_leg.amount
-    if record.state is GroupState.EXITS_PLACING:
+    if bracket and leg_index > 0:
         amount = min(amount, record.legs[0].filled)
     leg = LegRecord(
         leg_index,
@@ -547,10 +562,41 @@ def begin_leg(record: GroupRecord, leg_index: int, link_tag: LinkTag, now: float
     return Transition(replace(record, legs=(*record.legs, leg)), (Persist(), PlaceLeg(leg_index)))
 
 
+def _merge_fill(ctx: _Ctx, index: int, fill: LegFill) -> None:
+    leg = ctx.rec.legs[index]
+    if fill.cumulative_filled <= leg.filled:
+        return
+    status = (
+        LegStatus.FILLED
+        if fill.cumulative_filled >= leg.placed_amount
+        else LegStatus.PARTIALLY_FILLED
+    )
+    ctx.merge(index, status, fill.cumulative_filled, confirmed=False)
+
+
+def _replay(ctx: _Ctx, index: int, items: Sequence[OrderState | LegFill]) -> None:
+    """Apply buffered reports in arrival order, before any trigger/cancel is evaluated."""
+    for item in items:
+        if isinstance(item, LegFill):
+            _merge_fill(ctx, index, item)
+        else:
+            ctx.merge(index, LegStatus.from_order_state(item), _ZERO, confirmed=False)
+
+
 def leg_placed(
-    record: GroupRecord, leg_index: int, client_order_id: str, now: float, *, closed: bool = False
+    record: GroupRecord,
+    leg_index: int,
+    client_order_id: str,
+    now: float,
+    *,
+    closed: bool = False,
+    replay: Sequence[OrderState | LegFill] = (),
 ) -> Transition:
-    """`place_leg` returned: register the id (the leg is OPEN until a report says otherwise)."""
+    """`place_leg` returned: register the id (the leg is OPEN until a report says otherwise).
+
+    `replay` holds the reports buffered for this id while the reply was pending; they are applied
+    (in order) before the deferred trigger/cancel rules run.
+    """
 
     def body(ctx: _Ctx) -> None:
         leg = ctx.rec.legs[leg_index]
@@ -561,12 +607,19 @@ def leg_placed(
             status=LegStatus.OPEN if pending else leg.status,
             unresolved_since=None if pending else leg.unresolved_since,
         )
+        _replay(ctx, leg_index, replay)
 
     return _run(record, now, closed, body)
 
 
 def leg_unknown(
-    record: GroupRecord, leg_index: int, client_order_id: str, now: float, *, closed: bool = False
+    record: GroupRecord,
+    leg_index: int,
+    client_order_id: str,
+    now: float,
+    *,
+    closed: bool = False,
+    replay: Sequence[OrderState | LegFill] = (),
 ) -> Transition:
     """Row 5: `OrderOutcomeUnknownError`; the leg is UNKNOWN and unresolved."""
 
@@ -578,6 +631,7 @@ def leg_unknown(
             status=LegStatus.UNKNOWN,
             unresolved_since=leg.unresolved_since or now,
         )
+        _replay(ctx, leg_index, replay)
 
     return _run(record, now, closed, body)
 
@@ -593,7 +647,10 @@ def leg_rejected(
         if state is GroupState.PLACING:
             ctx.rec = replace(ctx.rec, cancel_cause="rollback")
             ctx.enter(GroupState.CANCELLING)
-        elif state is GroupState.EXITS_PLACING:
+        elif state is GroupState.EXITS_PLACING or (
+            state is GroupState.DEGRADED and leg_index > 0 and ctx.rec.spec.kind is LinkKind.BRACKET
+        ):
+            # No retry; the remaining exits are still placed (protection wins).
             ctx.degrade(
                 DegradedReason.EXIT_PLACEMENT_FAILED,
                 leg_index=leg_index,
@@ -629,16 +686,7 @@ def apply_fill(
     index = find_leg(record, fill.client_order_id)
     if index is None or fill.cumulative_filled <= record.legs[index].filled:
         return Transition(record)
-    status = (
-        LegStatus.FILLED
-        if fill.cumulative_filled >= record.legs[index].placed_amount
-        else LegStatus.PARTIALLY_FILLED
-    )
-
-    def body(ctx: _Ctx) -> None:
-        ctx.merge(index, status, fill.cumulative_filled, confirmed=False)
-
-    return _run(record, now, closed, body)
+    return _run(record, now, closed, lambda ctx: _merge_fill(ctx, index, fill))
 
 
 def apply_snapshot(
@@ -700,6 +748,37 @@ def request_cancel(record: GroupRecord, now: float, *, closed: bool = False) -> 
         if ctx.rec.state is not GroupState.DEGRADED:
             ctx.enter(GroupState.CANCELLING)
         ctx.seal()
+
+    return _run(record, now, closed, body)
+
+
+def cancel_still_due(record: GroupRecord, leg_index: int) -> bool:
+    """True if a queued `CancelLeg` may still be sent (I1 re-check right before the I/O)."""
+    leg = record.legs[leg_index]
+    if not leg.cancel_requested or is_terminal(leg) or is_unresolved(leg):
+        return False
+    return record.cancel_cause == "user" or not any_unresolved(record)
+
+
+def withdraw_cancel(
+    record: GroupRecord, leg_index: int, now: float, *, closed: bool = False
+) -> Transition:
+    """A queued cancel went stale (the group changed while it waited): it is re-decided later."""
+    return _run(record, now, closed, lambda ctx: ctx.set_leg(leg_index, cancel_requested=False))
+
+
+def resume(record: GroupRecord, now: float, *, closed: bool = False) -> Transition:
+    """Re-run every deferred rule on a rebuilt record (restart recovery, step 3)."""
+    return _run(record, now, closed, lambda ctx: None)
+
+
+def mark_link_broken(
+    record: GroupRecord, leg_index: int, detail: str, now: float, *, closed: bool = False
+) -> Transition:
+    """Recovery: the venue holds a different order at a leg index than the store does."""
+
+    def body(ctx: _Ctx) -> None:
+        ctx.degrade(DegradedReason.LINK_BROKEN, leg_index=leg_index, detail=detail)
 
     return _run(record, now, closed, body)
 
