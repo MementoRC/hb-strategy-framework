@@ -9,7 +9,8 @@ description = "Strategy composition framework for Hummingbot — protocol-typed 
 requires-python = ">=3.12"
 license = {text = "Apache-2.0"}
 dependencies = [
-    "hb-data-type-primitives @ git+https://github.com/MementoRC/hb-data-type-primitives.git@v0.10.0",
+    # supported range: hb-data-type-primitives >=0.11,<0.12 (a git ref cannot express a range)
+    "hb-data-type-primitives @ git+https://github.com/MementoRC/hb-data-type-primitives.git@v0.11.0",
     "hb-event-bus @ git+https://github.com/MementoRC/hb-event-bus.git@v0.2.0",
     "hb-logger @ git+https://github.com/MementoRC/hb-logger.git@v0.2.0",
     "pandas-ta>=0.4.71b0",
@@ -34,6 +35,24 @@ name = "strategy_framework never imports hummingbot (ADR 0001)"
 type = "forbidden"
 source_modules = ["strategy_framework"]
 forbidden_modules = ["hummingbot"]
+
+[[tool.importlinter.contracts]]
+name = "strategy_framework never imports market_connector (ADR 0001, no L2->L2)"
+type = "forbidden"
+source_modules = ["strategy_framework"]
+forbidden_modules = ["market_connector"]
+
+[[tool.importlinter.contracts]]
+name = "linked_orders is a leaf: no executors/orchestrator/mixins/hb_compat/testing"
+type = "forbidden"
+source_modules = ["strategy_framework.linked_orders"]
+forbidden_modules = [
+    "strategy_framework.executors",
+    "strategy_framework.orchestrator",
+    "strategy_framework.mixins",
+    "strategy_framework.hb_compat",
+    "strategy_framework.testing",
+]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

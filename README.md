@@ -92,6 +92,31 @@ This package follows the **Hexagonal Architecture** (Ports & Adapters) pattern:
 - **Adapters** (`strategy_framework/adapters/`): Bridge between core domain and external systems
 - **hb_compat** (`strategy_framework/hb_compat/`): Integration layer for Hummingbot compatibility
 
+## Emulated linked orders: hazards
+
+`strategy_framework.linked_orders` (opt-in; not re-exported from the top-level package) emulates
+OCO and BRACKET on venues without native support. Each leg is the venue's own native order; the
+manager emulates only the *link* (when one leg fills, it cancels the siblings). Read this before
+enabling `LinkedOrderManagerConfig(enabled=True)`:
+
+- **Double fill.** Emulated OCO cannot give native OCA guarantees. A sibling can fill before its
+  cancel lands, while the process is down or the stream is lost, while a cancel is deferred on an
+  unresolved leg, or as a late CANCELED-with-fill report. The manager detects this (the group goes
+  DEGRADED with `DOUBLE_FILL`, with an event and a WARNING log) but never prevents it and never
+  places compensating orders.
+- **Unprotected entry window (BRACKET).** Exits are placed once, only after the entry is terminal
+  and its final fill is confirmed, sized `min(exit.amount, filled)`. A partially filled entry has no
+  protection until then. Limit the window with the entry order type and `cancel_linked` (which never
+  places exits).
+- **Unprotected after an exit rejection.** A rejected exit (for example below the venue minimum
+  after resizing) is not retried: the group goes DEGRADED (`EXIT_PLACEMENT_FAILED`), the remaining
+  exits are still placed, and the position is unprotected or only partially protected.
+- **Durable store required.** The write-ahead record is what lets `recover()` find legs after a
+  crash. A non-durable store is refused unless `allow_volatile_store` is set (tests only).
+- **Callers drive it.** The manager starts no tasks: feed `on_order_update` / `on_fill` and call
+  `tick()` periodically. `place_*` returns once submission is done; check `handle.state` and
+  subscribe to `"linked.group"` events. `shutdown()` persists and reports; it never cancels.
+
 ## License
 
 This project is licensed under the Apache 2.0 License - see the [LICENSE](LICENSE) file for details.
