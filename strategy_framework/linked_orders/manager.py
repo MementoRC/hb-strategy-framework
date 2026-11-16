@@ -42,9 +42,11 @@ from data_type_primitives import LinkKind, OrderOutcomeUnknownError
 
 from strategy_framework.linked_orders.errors import (
     EmulationNotEnabledError,
+    GroupIdPersistenceError,
     GroupInvariantError,
     LinkedGroupNotFoundError,
     LinkIdCodecError,
+    RecoveryRequiredError,
     UnsupportedLegError,
     VolatileStoreError,
 )
@@ -53,6 +55,7 @@ from strategy_framework.linked_orders.events import (
     LinkedEventKind,
     LinkedGroupEvent,
 )
+from strategy_framework.linked_orders.protocols import GroupIdHighWaterStore
 from strategy_framework.linked_orders.state import (
     CancelLeg,
     Delete,
@@ -124,6 +127,8 @@ _PLACEABLE_STATUSES = frozenset({LegStatus.PENDING_CREATE, LegStatus.UNKNOWN})
 
 _IoAction = CancelLeg | GetLeg
 
+_GROUP_ID_EPOCH = 1_767_225_600  # 2026-01-01T00:00:00Z: origin of the time-derived id floor
+
 
 class _SystemClock:
     def time(self) -> float:
@@ -188,7 +193,9 @@ class EmulatedLinkedOrderManager:
         self._by_cid: dict[str, GroupId] = {}
         self._buffer: deque[_Buffered] = deque()
         self._intake = FillIntake()
-        self._next_id = config.group_id_seed
+        self._recovered = False
+        self._next_id = 0
+        self._next_id = self._lower_bound()
 
     # ------------------------------------------------------------------ public API
 
@@ -289,6 +296,7 @@ class EmulatedLinkedOrderManager:
         for group in groups:
             await self._resume(group)
         self._seed_counter()
+        self._recovered = True
         degraded = sum(1 for g in groups if g.record.state is GroupState.DEGRADED)
         self._emit(
             LinkedGroupEvent(
@@ -329,6 +337,8 @@ class EmulatedLinkedOrderManager:
         kind: LinkKind,
         options: Mapping[str, object] | None,
     ) -> _Group:
+        if self._config.require_recover_before_place and not self._recovered:
+            raise RecoveryRequiredError
         if not (self._store.durable or self._config.allow_volatile_store):
             raise VolatileStoreError
         if spec.kind is not kind:
@@ -339,15 +349,37 @@ class EmulatedLinkedOrderManager:
         for index, leg in enumerate(spec.ordered_legs()):
             if not self._venue.supports_leg(target, leg):
                 raise UnsupportedLegError(index, leg.role, leg.order_type)
-        group_id = self._next_id
+        group_id = self._lower_bound()  # no await until _next_id is advanced: atomic
+        self._persist_hwm(group_id)  # fail closed: before the id reaches the codec or the venue
         self._check_codec(group_id, spec)
-        self._next_id += 1
+        self._next_id = group_id + 1
         record = new_group(group_id, target, spec, self._now())
         self._store.save(record)  # write-ahead: the group exists before any leg
         group = _Group(record)
         self._groups[group_id] = group
         await self._drive(group)
         return group
+
+    def _lower_bound(self) -> GroupId:
+        """Smallest id that can never have been used: max of the counter, seed, HWM and floor."""
+        bounds = [self._next_id, self._config.group_id_seed, self._time_floor()]
+        if isinstance(self._store, GroupIdHighWaterStore):
+            hwm = self._store.load_group_id_hwm()
+            if hwm is not None:
+                bounds.append(hwm + 1)
+        return max(bounds)
+
+    def _time_floor(self) -> int:
+        factor = self._config.group_id_time_factor
+        return max(0, (int(self._now()) - _GROUP_ID_EPOCH) * factor)
+
+    def _persist_hwm(self, group_id: GroupId) -> None:
+        if not isinstance(self._store, GroupIdHighWaterStore):
+            return
+        try:
+            self._store.save_group_id_hwm(group_id)
+        except Exception as exc:
+            raise GroupIdPersistenceError(group_id) from exc
 
     def _check_codec(self, group_id: GroupId, spec: LinkedOrderSpec) -> None:
         for index in range(len(spec.legs)):
@@ -701,7 +733,7 @@ class EmulatedLinkedOrderManager:
 
     def _seed_counter(self) -> None:
         stored = [gid + 1 for gid in self._groups]
-        self._next_id = max([self._next_id, *stored])
+        self._next_id = max([self._next_id, self._lower_bound(), *stored])
 
     # ------------------------------------------------------------------ events
 

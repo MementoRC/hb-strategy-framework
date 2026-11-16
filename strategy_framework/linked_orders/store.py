@@ -15,6 +15,7 @@ class InMemoryLinkedGroupStore:
 
     def __init__(self) -> None:
         self._records: dict[GroupId, GroupRecord] = {}
+        self._group_id_hwm: GroupId | None = None
 
     @property
     def durable(self) -> bool:
@@ -28,3 +29,10 @@ class InMemoryLinkedGroupStore:
 
     def delete(self, group_id: GroupId) -> None:
         self._records.pop(group_id, None)
+
+    def load_group_id_hwm(self) -> GroupId | None:
+        return self._group_id_hwm
+
+    def save_group_id_hwm(self, group_id: GroupId) -> None:
+        if self._group_id_hwm is None or group_id > self._group_id_hwm:
+            self._group_id_hwm = group_id

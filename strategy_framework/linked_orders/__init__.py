@@ -7,10 +7,12 @@ give native OCA guarantees; a sibling can fill before its cancel lands (double f
 from strategy_framework.linked_orders.config import LinkedOrderManagerConfig
 from strategy_framework.linked_orders.errors import (
     EmulationNotEnabledError,
+    GroupIdPersistenceError,
     GroupInvariantError,
     LinkedGroupNotFoundError,
     LinkedOrderError,
     LinkIdCodecError,
+    RecoveryRequiredError,
     UnsupportedLegError,
     VolatileStoreError,
 )
@@ -23,6 +25,7 @@ from strategy_framework.linked_orders.manager import EmulatedLinkedOrderManager
 from strategy_framework.linked_orders.protocols import (
     ClockProtocol,
     EmulationVenue,
+    GroupIdHighWaterStore,
     LinkedEventEmitter,
     LinkedGroupStore,
     LinkedOrderIdCodec,
@@ -51,6 +54,8 @@ __all__ = [
     "EmulatedLinkedOrderManager",
     "EmulationNotEnabledError",
     "EmulationVenue",
+    "GroupIdHighWaterStore",
+    "GroupIdPersistenceError",
     "GroupInvariantError",
     "GroupRecord",
     "GroupState",
@@ -70,6 +75,7 @@ __all__ = [
     "LinkedOrderIdCodec",
     "LinkedOrderManagerConfig",
     "OcoHandle",
+    "RecoveryRequiredError",
     "UnsupportedLegError",
     "VolatileStoreError",
 ]
