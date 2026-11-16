@@ -82,6 +82,23 @@ class LinkedGroupStore(Protocol):
 
 
 @runtime_checkable
+class GroupIdHighWaterStore(Protocol):
+    """Optional store capability: the highest group id ever allocated, kept across restarts.
+
+    Group ids must never repeat on an account (the venue dedupes client order ids forever), so a
+    store that can persist this survives a wiped group table. Detected with `isinstance`.
+    """
+
+    def load_group_id_hwm(self) -> GroupId | None:
+        """The highest group id ever saved, or None if none was."""
+        ...
+
+    def save_group_id_hwm(self, group_id: GroupId) -> None:
+        """Must be durable before returning."""
+        ...
+
+
+@runtime_checkable
 class ClockProtocol(Protocol):
     def time(self) -> float:
         """Epoch seconds, same unit as `OrderUpdate.update_timestamp`."""

@@ -50,6 +50,21 @@ class LinkIdCodecError(LinkedOrderError):
         self.tag = tag
 
 
+class RecoveryRequiredError(LinkedOrderError):
+    """`require_recover_before_place` is set and `recover()` has not completed."""
+
+    def __init__(self) -> None:
+        super().__init__("recover() must complete before placing linked orders")
+
+
+class GroupIdPersistenceError(LinkedOrderError):
+    """The group-id high-water mark could not be saved; nothing was placed (fail closed)."""
+
+    def __init__(self, group_id: GroupId) -> None:
+        super().__init__(f"could not persist group id high-water mark {group_id}; not placing")
+        self.group_id = group_id
+
+
 class GroupInvariantError(LinkedOrderError):
     """An internal invariant of a linked group was violated (a bug, not a caller error)."""
 

@@ -12,6 +12,10 @@ class LinkedOrderManagerConfig:
     `enabled` is the explicit opt-in: the manager constructor raises when False. Emulated
     OCO cannot give native OCA guarantees: a sibling can fill before its cancel lands
     (double fill), which is detected and reported but never prevented or unwound.
+
+    `group_id_time_factor` scales the time-derived group-id floor (0 disables it).
+    `require_recover_before_place`: when True, placing raises `RecoveryRequiredError` until
+    `recover()` has completed successfully.
     """
 
     enabled: bool = False
@@ -19,6 +23,8 @@ class LinkedOrderManagerConfig:
     allow_volatile_store: bool = False
     cancel_orphans: bool = False
     group_id_seed: int = 1
+    group_id_time_factor: int = 100
+    require_recover_before_place: bool = False
     unmatched_buffer_max: int = 1024
     tombstone_ttl_s: float = 300.0
 
@@ -29,4 +35,7 @@ class LinkedOrderManagerConfig:
                 raise ValueError(msg)
         if self.group_id_seed < 0:
             msg = "group_id_seed must be >= 0"
+            raise ValueError(msg)
+        if self.group_id_time_factor < 0:
+            msg = "group_id_time_factor must be >= 0"
             raise ValueError(msg)
