@@ -15,7 +15,7 @@ from dataclasses import dataclass, replace
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 
-from data_type_primitives import LegRole, LinkKind
+from data_type_primitives import LegRole, LinkedCancelStatus, LinkKind
 
 from strategy_framework.linked_orders.events import LinkedEventKind, LinkedGroupEvent
 from strategy_framework.linked_orders.types import (
@@ -182,13 +182,59 @@ def can_place(record: GroupRecord) -> bool:
 
 
 def residual_filled(record: GroupRecord) -> Decimal:
-    """Entry fill (BRACKET) plus winner fill: the exposure left after a cancel."""
+    """Signed net open exposure in base quantity, relative to `ordered_legs()[0]`.
+
+    A leg on the same `trade_type` as the first spec leg adds its filled amount, a leg on the
+    opposite side subtracts it. Never-submitted (NOT_PLACED) legs have filled 0.
+    """
+    specs = record.spec.ordered_legs()
+    side = specs[0].trade_type
     total = _ZERO
-    if record.spec.kind is LinkKind.BRACKET and record.legs:
-        total += record.legs[0].filled
-    if record.winner_leg_index is not None:
-        total += record.legs[record.winner_leg_index].filled
+    for leg in record.legs:
+        same_side = specs[leg.leg_index].trade_type == side
+        total += leg.filled if same_side else -leg.filled
     return total
+
+
+_ALL_TERMINAL_STATUS = {
+    GroupState.CANCELED: LinkedCancelStatus.CANCELED,
+    GroupState.FAILED: LinkedCancelStatus.FAILED,
+    GroupState.COMPLETED: LinkedCancelStatus.FILLED,
+    GroupState.DEGRADED: LinkedCancelStatus.UNKNOWN,
+    GroupState.CANCELLING: LinkedCancelStatus.UNKNOWN,
+}
+_LEGS_OPEN_STATUS = {
+    GroupState.CANCELLING: LinkedCancelStatus.PENDING,
+    GroupState.COMPLETED: LinkedCancelStatus.FILLED,
+    GroupState.DEGRADED: LinkedCancelStatus.UNKNOWN,
+    GroupState.CANCELED: LinkedCancelStatus.UNKNOWN,
+    GroupState.FAILED: LinkedCancelStatus.UNKNOWN,
+}
+
+
+def cancel_status(state: GroupState, *, all_legs_terminal: bool) -> LinkedCancelStatus:
+    """Group-level cancel status from the group state and whether every leg is terminal."""
+    table = _ALL_TERMINAL_STATUS if all_legs_terminal else _LEGS_OPEN_STATUS
+    return table.get(state, LinkedCancelStatus.UNKNOWN)
+
+
+def _leg_cancel_outcome(leg: LegRecord) -> CancelOutcome | None:
+    """None only for a leg that was never submitted; a real cancel reply is kept as is."""
+    if leg.status is LegStatus.NOT_PLACED or leg.client_order_id is None:
+        return None
+    if leg.cancel_outcome is not None:
+        return leg.cancel_outcome
+    if leg.status in _FILLED_STATUSES:
+        return CancelOutcome.ALREADY_FILLED
+    if leg.status in TERMINAL_STATUSES:
+        return CancelOutcome.CANCELED
+    return CancelOutcome.UNKNOWN
+
+
+def leg_cancel_outcomes(record: GroupRecord) -> tuple[CancelOutcome | None, ...]:
+    """One entry per `spec.ordered_legs()` position; legs missing from the record are None."""
+    outcomes = [_leg_cancel_outcome(leg) for leg in record.legs]
+    return tuple(outcomes) + (None,) * (len(record.spec.legs) - len(outcomes))
 
 
 class FillIntake:

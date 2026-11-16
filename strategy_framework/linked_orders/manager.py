@@ -66,9 +66,11 @@ from strategy_framework.linked_orders.state import (
     apply_update,
     begin_leg,
     can_place,
+    cancel_status,
     cancel_still_due,
     find_leg,
     is_terminal,
+    leg_cancel_outcomes,
     leg_count,
     leg_placed,
     leg_rejected,
@@ -218,13 +220,14 @@ class EmulatedLinkedOrderManager:
         rec = group.record
         if not rec.legs:
             raise GroupInvariantError(rec.group_id, "cancel_linked on a group with no legs")
+        all_terminal = len(rec.legs) == leg_count(rec) and all(is_terminal(leg) for leg in rec.legs)
         return LinkedCancelOutcome(
             group_id=handle.group_id,
             state=rec.state,
-            all_legs_terminal=len(rec.legs) == leg_count(rec)
-            and all(is_terminal(leg) for leg in rec.legs),
+            all_legs_terminal=all_terminal,
             residual_filled=residual_filled(rec),
-            leg_outcomes=tuple(leg.cancel_outcome for leg in rec.legs),
+            leg_outcomes=leg_cancel_outcomes(rec),
+            status=cancel_status(rec.state, all_legs_terminal=all_terminal),
         )
 
     async def on_order_update(self, update: OrderUpdate) -> None:
