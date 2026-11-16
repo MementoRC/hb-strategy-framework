@@ -35,6 +35,18 @@ class LinkedOrderIdCodec(Protocol):
 
 
 @runtime_checkable
+class BoundedLinkIdCodec(Protocol):
+    """Optional codec capability: the largest GroupId it can encode (e.g. int32 layouts).
+
+    Detected with `isinstance`. The manager raises `GroupIdSpaceExhaustedError` instead of
+    allocating an id above this; ids are never clamped or wrapped.
+    """
+
+    @property
+    def max_group_id(self) -> GroupId: ...
+
+
+@runtime_checkable
 class EmulationVenue(Protocol):
     """Native single-order venue operations used to emulate the link."""
 

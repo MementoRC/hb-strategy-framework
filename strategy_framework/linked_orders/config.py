@@ -13,7 +13,13 @@ class LinkedOrderManagerConfig:
     OCO cannot give native OCA guarantees: a sibling can fill before its cancel lands
     (double fill), which is detected and reported but never prevented or unwound.
 
-    `group_id_time_factor` scales the time-derived group-id floor (0 disables it).
+    `group_id_time_factor` scales the time-derived group-id floor: `factor` ids per second since
+    2026-01-01Z. The floor prevents id reuse after a restart without a persisted high-water mark
+    only while sustained allocation stays below `factor` ids/s. 0 disables it. Codecs with a
+    small id space (int32 userref layouts) need a small factor: the default 100 passes int32
+    around mid-2026-11, while factor 1 gives about 3.15e7 ids/yr, leaving int32 headroom for
+    decades before leg-index packing. Such codecs should implement `BoundedLinkIdCodec`, so the
+    manager raises `GroupIdSpaceExhaustedError` rather than overflowing.
     `require_recover_before_place`: when True, placing raises `RecoveryRequiredError` until
     `recover()` has completed successfully.
     """

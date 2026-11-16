@@ -8,6 +8,7 @@ from strategy_framework.linked_orders.config import LinkedOrderManagerConfig
 from strategy_framework.linked_orders.errors import (
     EmulationNotEnabledError,
     GroupIdPersistenceError,
+    GroupIdSpaceExhaustedError,
     GroupInvariantError,
     LinkedGroupNotFoundError,
     LinkedOrderError,
@@ -23,6 +24,7 @@ from strategy_framework.linked_orders.events import (
 )
 from strategy_framework.linked_orders.manager import EmulatedLinkedOrderManager
 from strategy_framework.linked_orders.protocols import (
+    BoundedLinkIdCodec,
     ClockProtocol,
     EmulationVenue,
     GroupIdHighWaterStore,
@@ -47,6 +49,7 @@ from strategy_framework.linked_orders.types import (
 
 __all__ = [
     "LINKED_GROUP_EVENT",
+    "BoundedLinkIdCodec",
     "BracketHandle",
     "CancelOutcome",
     "ClockProtocol",
@@ -56,6 +59,7 @@ __all__ = [
     "EmulationVenue",
     "GroupIdHighWaterStore",
     "GroupIdPersistenceError",
+    "GroupIdSpaceExhaustedError",
     "GroupInvariantError",
     "GroupRecord",
     "GroupState",
