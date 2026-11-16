@@ -15,7 +15,11 @@ if TYPE_CHECKING:
     from data_type_primitives import LegRole, LinkedOrderSpec, OrderState
 
 GroupId = int
-"""Internal group id; an int so int32 userref layouts (Kraken) can encode it."""
+"""Internal group id; an int so int32 userref layouts (Kraken) can encode it.
+
+int32 layouts need a reduced `group_id_time_factor` (the default 100 outgrows int32 within a
+year) and should implement `BoundedLinkIdCodec` so overflow fails loudly.
+"""
 
 LinkTag = str | int
 """What the venue attaches to an order (client_order_id or userref)."""

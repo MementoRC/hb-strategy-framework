@@ -65,6 +65,24 @@ class GroupIdPersistenceError(LinkedOrderError):
         self.group_id = group_id
 
 
+class GroupIdSpaceExhaustedError(LinkedOrderError):
+    """The next safe group id exceeds what the (bounded) codec can encode; ids are never wrapped."""
+
+    def __init__(self, lower_bound: int, max_group_id: int, dominant: str) -> None:
+        hint = (
+            "; lower config.group_id_time_factor (e.g. 1) so the time floor fits the codec"
+            if dominant == "time floor"
+            else ""
+        )
+        super().__init__(
+            f"next safe group id {lower_bound} exceeds codec max_group_id {max_group_id} "
+            f"(dominant component: {dominant}){hint}"
+        )
+        self.lower_bound = lower_bound
+        self.max_group_id = max_group_id
+        self.dominant = dominant
+
+
 class GroupInvariantError(LinkedOrderError):
     """An internal invariant of a linked group was violated (a bug, not a caller error)."""
 

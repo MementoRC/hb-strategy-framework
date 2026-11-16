@@ -43,6 +43,7 @@ from data_type_primitives import LinkKind, OrderOutcomeUnknownError
 from strategy_framework.linked_orders.errors import (
     EmulationNotEnabledError,
     GroupIdPersistenceError,
+    GroupIdSpaceExhaustedError,
     GroupInvariantError,
     LinkedGroupNotFoundError,
     LinkIdCodecError,
@@ -55,7 +56,10 @@ from strategy_framework.linked_orders.events import (
     LinkedEventKind,
     LinkedGroupEvent,
 )
-from strategy_framework.linked_orders.protocols import GroupIdHighWaterStore
+from strategy_framework.linked_orders.protocols import (
+    BoundedLinkIdCodec,
+    GroupIdHighWaterStore,
+)
 from strategy_framework.linked_orders.state import (
     CancelLeg,
     Delete,
@@ -195,7 +199,7 @@ class EmulatedLinkedOrderManager:
         self._intake = FillIntake()
         self._recovered = False
         self._next_id = 0
-        self._next_id = self._lower_bound()
+        self._next_id = self._checked_lower_bound()
 
     # ------------------------------------------------------------------ public API
 
@@ -349,9 +353,9 @@ class EmulatedLinkedOrderManager:
         for index, leg in enumerate(spec.ordered_legs()):
             if not self._venue.supports_leg(target, leg):
                 raise UnsupportedLegError(index, leg.role, leg.order_type)
-        group_id = self._lower_bound()  # no await until _next_id is advanced: atomic
-        self._persist_hwm(group_id)  # fail closed: before the id reaches the codec or the venue
-        self._check_codec(group_id, spec)
+        group_id = self._checked_lower_bound()  # no await until _next_id is advanced: atomic
+        self._check_codec(group_id, spec)  # places nothing: a rejected id must not reach the HWM
+        self._persist_hwm(group_id)  # fail closed: before the id reaches the venue
         self._next_id = group_id + 1
         record = new_group(group_id, target, spec, self._now())
         self._store.save(record)  # write-ahead: the group exists before any leg
@@ -362,12 +366,28 @@ class EmulatedLinkedOrderManager:
 
     def _lower_bound(self) -> GroupId:
         """Smallest id that can never have been used: max of the counter, seed, HWM and floor."""
-        bounds = [self._next_id, self._config.group_id_seed, self._time_floor()]
+        return max(self._bound_components().values())
+
+    def _bound_components(self) -> dict[str, int]:
+        bounds = {
+            "counter": self._next_id,
+            "seed": self._config.group_id_seed,
+            "time floor": self._time_floor(),
+        }
         if isinstance(self._store, GroupIdHighWaterStore):
             hwm = self._store.load_group_id_hwm()
             if hwm is not None:
-                bounds.append(hwm + 1)
-        return max(bounds)
+                bounds["HWM"] = hwm + 1
+        return bounds
+
+    def _checked_lower_bound(self) -> GroupId:
+        """`_lower_bound`, raising instead of exceeding a bounded codec's id space."""
+        bounds = self._bound_components()
+        lower = max(bounds.values())
+        if isinstance(self._codec, BoundedLinkIdCodec) and lower > self._codec.max_group_id:
+            dominant = max(bounds, key=lambda name: bounds[name])
+            raise GroupIdSpaceExhaustedError(lower, self._codec.max_group_id, dominant)
+        return lower
 
     def _time_floor(self) -> int:
         factor = self._config.group_id_time_factor
@@ -733,7 +753,7 @@ class EmulatedLinkedOrderManager:
 
     def _seed_counter(self) -> None:
         stored = [gid + 1 for gid in self._groups]
-        self._next_id = max([self._next_id, self._lower_bound(), *stored])
+        self._next_id = max([self._next_id, self._checked_lower_bound(), *stored])
 
     # ------------------------------------------------------------------ events
 
