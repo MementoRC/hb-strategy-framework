@@ -13,6 +13,7 @@ from strategy_framework.linked_orders.state import (
     PlaceLeg,
     any_unresolved,
     can_place,
+    durable,
     is_terminal,
     is_unresolved,
     leg_count,
@@ -129,7 +130,7 @@ def _i4_i7(
             if not acts or not isinstance(acts[0], Persist):
                 out.append("I7: place_leg not preceded by Persist")
     side_effects = [a for a in acts if not isinstance(a, (Persist, Delete))]
-    if side_effects and new != prev and not closed:
+    if side_effects and (prev is None or durable(new) != durable(prev)) and not closed:
         first_is_save = bool(acts) and isinstance(acts[0], (Persist, Delete))
         if not first_is_save and any(not isinstance(a, Emit) for a in side_effects):
             out.append("I7: side effects without a preceding save")

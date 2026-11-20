@@ -123,7 +123,7 @@ async def test_past_grace_degrades_once(
 
 
 async def test_not_found_cancel_stays_unresolved_until_get_leg_answers(
-    manager: EmulatedLinkedOrderManager, venue: FakeEmulationVenue
+    manager: EmulatedLinkedOrderManager, venue: FakeEmulationVenue, clock: ManualClock
 ) -> None:
     await manager.place_oco(TARGET, oco_spec())
     venue.script_cancel(CancelOutcome.NOT_FOUND)
@@ -131,8 +131,10 @@ async def test_not_found_cancel_stays_unresolved_until_get_leg_answers(
     assert record(manager).state is S.TRIGGERED
     assert leg(manager, 1).cancel_outcome is CancelOutcome.NOT_FOUND
     venue.script_get(None)  # get_leg has no answer: still unresolved
+    clock.advance(1)  # the default backoff base
     await manager.tick()
     assert record(manager).state is S.TRIGGERED
+    clock.advance(2)  # the next retry is one multiplier later
     await manager.tick()  # get_leg answers OPEN: the cancel is re-sent
     assert cancels(venue) == ["fake-2", "fake-2"]
     assert manager.get_handle("1").state is S.COMPLETED

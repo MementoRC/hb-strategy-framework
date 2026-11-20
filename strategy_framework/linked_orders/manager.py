@@ -279,7 +279,7 @@ class EmulatedLinkedOrderManager:
                     self._purge(group)
                 continue
             async with group.lock:
-                trans = tick(group.record, now, self._config.grace_period_s)
+                trans = tick(group.record, now, self._config.grace_period_s, self._config.retry)
                 io = self._commit(group, trans)
                 by_tag = [
                     leg.leg_index
@@ -642,7 +642,9 @@ class EmulatedLinkedOrderManager:
         """Adopt a stored record; every leg that reached (or may have reached) the venue is
         unresolved until the venue answers, which defers any cancel until all are reconciled."""
         legs = tuple(
-            replace(leg, unresolved_since=now) if leg.status is not LegStatus.NOT_PLACED else leg
+            replace(leg, unresolved_since=now, retry_at=None, retry_delay_s=None)
+            if leg.status is not LegStatus.NOT_PLACED
+            else leg
             for leg in record.legs
         )
         group = _Group(replace(record, legs=legs))

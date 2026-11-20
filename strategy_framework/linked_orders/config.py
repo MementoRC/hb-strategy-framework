@@ -6,6 +6,15 @@ from dataclasses import dataclass
 
 
 @dataclass(frozen=True)
+class RetryBackoff:
+    """Exponential schedule for `get_leg` retries of an unresolved leg (all in seconds)."""
+
+    base_s: float = 1.0
+    multiplier: float = 2.0
+    max_s: float = 60.0
+
+
+@dataclass(frozen=True)
 class LinkedOrderManagerConfig:
     """Opt-in configuration.
 
@@ -33,15 +42,37 @@ class LinkedOrderManagerConfig:
     require_recover_before_place: bool = False
     unmatched_buffer_max: int = 1024
     tombstone_ttl_s: float = 300.0
+    unresolved_retry_base_s: float = 1.0
+    unresolved_retry_multiplier: float = 2.0
+    unresolved_retry_max_s: float = 60.0
 
     def __post_init__(self) -> None:
-        for name in ("grace_period_s", "unmatched_buffer_max", "tombstone_ttl_s"):
+        for name in (
+            "grace_period_s",
+            "unmatched_buffer_max",
+            "tombstone_ttl_s",
+            "unresolved_retry_base_s",
+        ):
             if getattr(self, name) <= 0:
                 msg = f"{name} must be > 0"
                 raise ValueError(msg)
+        if self.unresolved_retry_multiplier < 1:
+            msg = "unresolved_retry_multiplier must be >= 1"
+            raise ValueError(msg)
+        if self.unresolved_retry_max_s < self.unresolved_retry_base_s:
+            msg = "unresolved_retry_max_s must be >= unresolved_retry_base_s"
+            raise ValueError(msg)
         if self.group_id_seed < 0:
             msg = "group_id_seed must be >= 0"
             raise ValueError(msg)
         if self.group_id_time_factor < 0:
             msg = "group_id_time_factor must be >= 0"
             raise ValueError(msg)
+
+    @property
+    def retry(self) -> RetryBackoff:
+        return RetryBackoff(
+            self.unresolved_retry_base_s,
+            self.unresolved_retry_multiplier,
+            self.unresolved_retry_max_s,
+        )
