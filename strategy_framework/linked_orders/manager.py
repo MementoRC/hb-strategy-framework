@@ -185,7 +185,17 @@ class EmulatedLinkedOrderManager:
     not a non-negative int raises `GroupIdPersistenceError`; one already held by a tracked group
     raises `GroupInvariantError`. With an allocator, an id rejected by the bound OR the codec is
     burned (left as a gap, which the protocol allows); a cancellation after the allocator has
-    reserved may also leave a gap.
+    reserved may also leave a gap. An allocator id equal to the decoded id of a live orphan leg
+    seen by `recover()` raises `GroupInvariantError` (no write, no venue call).
+
+    Multi-manager / multi-host: legs of another manager on the same account look like orphans
+    to this manager's `recover()`, so `cancel_orphans=True` would cancel them. Shared-account
+    deployments must leave `cancel_orphans` off, or scope ownership themselves.
+
+    Mode switching: allocator mode does not advance the high-water store. Switching a deployment
+    from allocator mode back to the legacy id source is unsafe unless its id range is
+    reconciled. Treat the cutover as one-way. Legacy and allocator managers must not run
+    concurrently in one id scope.
     """
 
     def __init__(
@@ -213,6 +223,7 @@ class EmulatedLinkedOrderManager:
         self._intake = FillIntake()
         self._recovered = False
         self._allocator = allocator
+        self._live_foreign_ids: set[GroupId] = set()
         self._next_id = 0
         if allocator is None:
             self._next_id = self._checked_lower_bound()
@@ -392,6 +403,10 @@ class EmulatedLinkedOrderManager:
             raise GroupIdPersistenceError(None) from ValueError(msg)
         if group_id in self._groups:
             raise GroupInvariantError(group_id, "allocator returned an id already in use")
+        if group_id in self._live_foreign_ids:
+            raise GroupInvariantError(
+                group_id, "allocator returned an id held by a live orphan leg"
+            )
         return group_id
 
     def _check_bound(self, group_id: GroupId) -> None:
@@ -711,6 +726,8 @@ class EmulatedLinkedOrderManager:
                 group = self._groups.get(group_id)
                 if group is None:
                     orphans.add(group_id)
+                    if self._allocator is not None:
+                        self._live_foreign_ids.add(group_id)  # open on the venue, not adopted
                     await self._handle_orphan(target, group_id, index, snap)
                 else:
                     await self._match_leg(group, index, snap)

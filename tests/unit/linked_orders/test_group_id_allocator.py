@@ -125,6 +125,8 @@ async def test_two_managers_sharing_an_allocator_never_collide(
     assert len(set(ids)) == 40
     assert sorted(int(i) for i in ids) == list(range(1, 41))  # seed and floor ignored
     assert len(set(_gids(venue))) == 40
+    assert set(_gids(venue)) == {int(i) for i in ids}
+    assert sorted(_gids(venue)) == sorted(int(i) for i in ids for _ in range(2))  # 2 legs per OCO
 
 
 async def test_recover_with_foreign_legs_does_not_move_the_id_source(
@@ -226,6 +228,24 @@ async def test_reserved_id_at_the_bound_is_accepted(venue: FakeEmulationVenue) -
     await manager.recover([])
     handle = await manager.place_oco(TARGET, oco_spec())
     assert handle.group_id == "100"
+    assert set(_gids(venue)) == {100}
+
+
+async def test_allocator_id_held_by_a_live_orphan_is_rejected(
+    venue: FakeEmulationVenue, codec: StringLinkIdCodec
+) -> None:
+    await venue.place_leg(TARGET, oco_spec().legs[0], link_tag="hbl-7-0")
+    store = SpyStore()
+    manager = _mgr(venue, codec, ScriptedAllocator([7, 8]), store)
+    await manager.recover([TARGET])
+    legs = len(venue.calls("place_leg"))
+    with pytest.raises(GroupInvariantError):
+        await manager.place_oco(TARGET, oco_spec())
+    assert len(venue.calls("place_leg")) == legs
+    assert store.saves == []
+    assert not manager.has_pending_orders
+    handle = await manager.place_oco(TARGET, oco_spec())
+    assert handle.group_id == "8"
 
 
 async def test_hwm_store_and_seed_are_not_consulted(

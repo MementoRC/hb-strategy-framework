@@ -30,6 +30,8 @@ class LinkedOrderManagerConfig:
     around mid-2026-11, while factor 1 gives about 3.15e7 ids/yr, leaving int32 headroom for
     decades before leg-index packing. Such codecs should implement `BoundedLinkIdCodec`, so the
     manager raises `GroupIdSpaceExhaustedError` rather than overflowing.
+    `cancel_orphans`: cancels every unmatched leg `recover()` finds. Legs of another manager on
+    the same account look like orphans, so leave it off on shared accounts.
     `require_recover_before_place`: when True, placing raises `RecoveryRequiredError` until
     `recover()` has completed successfully.
     """
