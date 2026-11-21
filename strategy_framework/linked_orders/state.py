@@ -860,11 +860,18 @@ def tick(
         )
         ctx.settle()
     for leg in unresolved:
-        if leg.client_order_id and _retry_due(leg, now, retry):
+        if _lookup_key(leg) and _retry_due(leg, now, retry):
             delay = min((leg.retry_delay_s or retry.base_s) * retry.multiplier, retry.max_s)
             ctx.set_leg(leg.leg_index, retry_at=now + delay, retry_delay_s=delay)
             ctx.effects.append(GetLeg(leg.leg_index))
     return ctx.finish()
+
+
+def _lookup_key(leg: LegRecord) -> bool:
+    """True if `get_leg` can address the leg: by client order id, else by link tag (write-ahead)."""
+    return leg.client_order_id is not None or (
+        leg.link_tag is not None and leg.status in _UNRESOLVED_STATUSES
+    )
 
 
 def _retry_due(leg: LegRecord, now: float, retry: RetryBackoff) -> bool:

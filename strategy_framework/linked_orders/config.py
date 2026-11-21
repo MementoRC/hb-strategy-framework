@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 
 
@@ -55,6 +56,14 @@ class LinkedOrderManagerConfig:
         ):
             if getattr(self, name) <= 0:
                 msg = f"{name} must be > 0"
+                raise ValueError(msg)
+        for name in (
+            "unresolved_retry_base_s",
+            "unresolved_retry_multiplier",
+            "unresolved_retry_max_s",
+        ):
+            if not math.isfinite(getattr(self, name)):
+                msg = f"{name} must be finite"
                 raise ValueError(msg)
         if self.unresolved_retry_multiplier < 1:
             msg = "unresolved_retry_multiplier must be >= 1"

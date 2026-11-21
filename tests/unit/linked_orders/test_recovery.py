@@ -145,6 +145,7 @@ async def test_tick_adopts_a_tagged_leg_once_the_venue_can_find_it(
     venue.script_get(None)
     await fresh.recover([TARGET])
     assert leg(fresh, 0).client_order_id is None
+    clock.advance(1.0)  # the tag lookup is backed off like any other retry
     await fresh.tick()  # the lookup by tag now succeeds
     assert leg(fresh, 0).client_order_id == "fake-1"
     assert leg(fresh, 0).status is LS.CANCELED

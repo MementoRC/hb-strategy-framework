@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import math
+
 import pytest
 from data_type_primitives import OrderState
 
@@ -104,6 +106,14 @@ def test_config_defaults_and_retry_view() -> None:
 def test_base_must_be_positive(value: float) -> None:
     with pytest.raises(ValueError, match="unresolved_retry_base_s"):
         LinkedOrderManagerConfig(unresolved_retry_base_s=value)
+
+
+@pytest.mark.parametrize("name", ["base", "multiplier", "max"])
+@pytest.mark.parametrize("value", [math.nan, math.inf])
+def test_retry_settings_must_be_finite(name: str, value: float) -> None:
+    field = f"unresolved_retry_{name}" + ("" if name == "multiplier" else "_s")
+    with pytest.raises(ValueError, match=field):
+        LinkedOrderManagerConfig(**{field: value})
 
 
 def test_multiplier_must_be_at_least_one() -> None:

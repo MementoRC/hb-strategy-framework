@@ -75,6 +75,7 @@ from strategy_framework.linked_orders.state import (
     can_place,
     cancel_status,
     cancel_still_due,
+    durable,
     find_leg,
     is_terminal,
     leg_cancel_outcomes,
@@ -118,7 +119,6 @@ if TYPE_CHECKING:
         BracketHandle,
         GroupId,
         GroupRecord,
-        LegRecord,
         LegSnapshot,
         LinkTag,
         OcoHandle,
@@ -150,6 +150,7 @@ class _Group:
     driving: bool = False
     drive_pending: bool = False
     inflight: set[int] = field(default_factory=set)
+    getting: set[int] = field(default_factory=set)  # legs with a `get_leg` call outstanding
 
 
 @dataclass(frozen=True)
@@ -281,14 +282,7 @@ class EmulatedLinkedOrderManager:
             async with group.lock:
                 trans = tick(group.record, now, self._config.grace_period_s, self._config.retry)
                 io = self._commit(group, trans)
-                by_tag = [
-                    leg.leg_index
-                    for leg in group.record.legs
-                    if self._lookup_by_tag_due(group, leg)
-                ]
             await self._after(group, io)
-            for index in by_tag:
-                await self._adopt_by_tag(group, index)
 
     async def recover(self, targets: Sequence[str]) -> None:
         """Reconcile the store with the venue in both directions (restart recovery)."""
@@ -323,7 +317,7 @@ class EmulatedLinkedOrderManager:
             if group.closed:
                 continue
             async with group.lock:
-                self._store.save(group.record)
+                self._store.save(durable(group.record))
                 self._emit(
                     self._event(
                         LinkedEventKind.SHUTDOWN_OPEN,
@@ -480,7 +474,7 @@ class EmulatedLinkedOrderManager:
         reopened = False
         for act in trans.actions:
             if isinstance(act, Persist):
-                self._store.save(trans.record)
+                self._store.save(durable(trans.record))
                 reopened = group.closed
             elif isinstance(act, Delete):
                 self._store.delete(trans.record.group_id)
@@ -537,10 +531,21 @@ class EmulatedLinkedOrderManager:
             return self._commit(group, trans)
 
     async def _do_get(self, group: _Group, index: int) -> list[_IoAction]:
-        cid = group.record.legs[index].client_order_id
-        if cid is None:
+        rec = group.record
+        cid, tag = rec.legs[index].client_order_id, rec.legs[index].link_tag
+        by_tag = cid is None
+        # One lookup per leg at a time; a leg whose placement reply is pending has no id yet.
+        if index in group.getting or (by_tag and (tag is None or index in group.inflight)):
             return []
-        snapshot = await self._safe_get(group.record.target, client_order_id=cid)
+        group.getting.add(index)
+        try:
+            snapshot = await self._safe_get(
+                rec.target, client_order_id=cid, link_tag=tag if by_tag else None
+            )
+        finally:
+            group.getting.discard(index)
+        if snapshot is None and by_tag:  # "not found by tag" is no information
+            return []
         # A retry of get_leg belongs to the next tick(), never to this loop.
         follow = await self._apply_snapshot(group, index, snapshot)
         return [act for act in follow if isinstance(act, CancelLeg)]
@@ -577,22 +582,6 @@ class EmulatedLinkedOrderManager:
             )
             return False
         return True
-
-    def _lookup_by_tag_due(self, group: _Group, leg: LegRecord) -> bool:
-        return (
-            leg.client_order_id is None
-            and leg.link_tag is not None
-            and leg.status in _PLACEABLE_STATUSES
-            and leg.leg_index not in group.inflight
-        )
-
-    async def _adopt_by_tag(self, group: _Group, index: int) -> None:
-        tag = group.record.legs[index].link_tag
-        if tag is None:
-            return
-        snapshot = await self._safe_get(group.record.target, link_tag=tag)
-        if snapshot is not None:
-            await self._after(group, await self._apply_snapshot(group, index, snapshot))
 
     # ------------------------------------------------------------------ intake buffer
 
