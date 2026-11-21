@@ -36,7 +36,7 @@ class LinkedOrderIdCodec(Protocol):
 
 @runtime_checkable
 class BoundedLinkIdCodec(Protocol):
-    """Optional codec capability: the largest GroupId it can encode (e.g. int32 layouts).
+    """Optional codec capability: the largest encodable GroupId, inclusive (e.g. int32 layouts).
 
     Detected with `isinstance`. The manager raises `GroupIdSpaceExhaustedError` instead of
     allocating an id above this; ids are never clamped or wrapped.
@@ -97,8 +97,10 @@ class LinkedGroupStore(Protocol):
 class GroupIdHighWaterStore(Protocol):
     """Optional store capability: the highest group id ever allocated, kept across restarts.
 
-    Group ids must never repeat on an account (the venue dedupes client order ids forever), so a
-    store that can persist this survives a wiped group table. Detected with `isinstance`.
+    Group ids must never repeat on an account. Some venues reject a duplicate client order id only
+    among OPEN orders (e.g. Kraken `cl_ord_id`), and even then a lookup by client id can match an
+    older CLOSED order and misattribute its state or fills. A store that can persist this survives
+    a wiped group table. Detected with `isinstance`.
     """
 
     def load_group_id_hwm(self) -> GroupId | None:
@@ -107,6 +109,21 @@ class GroupIdHighWaterStore(Protocol):
 
     def save_group_id_hwm(self, group_id: GroupId) -> None:
         """Must be durable before returning."""
+        ...
+
+
+@runtime_checkable
+class GroupIdAllocator(Protocol):
+    """Injected source of group ids, shared by managers (processes, hosts) on one account.
+
+    Async because a real implementation takes a cross-process lock and does durable I/O.
+    """
+
+    async def reserve_group_id(self) -> GroupId:
+        """Atomic and durable before return; never returns the same value twice in its scope.
+
+        May leave gaps. Raises on exhaustion or failure (the manager then fails closed).
+        """
         ...
 
 

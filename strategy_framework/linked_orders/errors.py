@@ -58,10 +58,18 @@ class RecoveryRequiredError(LinkedOrderError):
 
 
 class GroupIdPersistenceError(LinkedOrderError):
-    """The group-id high-water mark could not be saved; nothing was placed (fail closed)."""
+    """The group-id high-water mark could not be saved, or the injected allocator failed.
 
-    def __init__(self, group_id: GroupId) -> None:
-        super().__init__(f"could not persist group id high-water mark {group_id}; not placing")
+    Nothing was placed (fail closed). `group_id` is None when no id was reserved (allocator).
+
+    Changed in #98: group_id may be None when an injected allocator fails before an id exists.
+    """
+
+    def __init__(self, group_id: GroupId | None) -> None:
+        if group_id is None:
+            super().__init__("group id allocator failed to reserve an id; not placing")
+        else:
+            super().__init__(f"could not persist group id high-water mark {group_id}; not placing")
         self.group_id = group_id
 
 

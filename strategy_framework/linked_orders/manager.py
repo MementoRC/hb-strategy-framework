@@ -110,6 +110,7 @@ if TYPE_CHECKING:
     from strategy_framework.linked_orders.protocols import (
         ClockProtocol,
         EmulationVenue,
+        GroupIdAllocator,
         LinkedEventEmitter,
         LinkedGroupStore,
         LinkedOrderIdCodec,
@@ -174,6 +175,17 @@ class EmulatedLinkedOrderManager:
     later changes. Handles are snapshots; use `get_handle` for a fresh one.
 
     `shutdown()` persists and reports open groups; it never cancels (the legs stay live).
+
+    With an `allocator`, the group id comes solely from `allocator.reserve_group_id()`:
+    `config.group_id_seed`, the time floor, the high-water store and the in-memory counter are
+    ignored (not an error), and `recover()` never derives an id source from decoded group ids
+    (foreign ones are still reported as orphans). An allocator failure raises
+    `GroupIdPersistenceError` (cause chained) before any write or venue call; an id above a
+    bounded codec's `max_group_id` raises `GroupIdSpaceExhaustedError`. A returned id that is
+    not a non-negative int raises `GroupIdPersistenceError`; one already held by a tracked group
+    raises `GroupInvariantError`. With an allocator, an id rejected by the bound OR the codec is
+    burned (left as a gap, which the protocol allows); a cancellation after the allocator has
+    reserved may also leave a gap.
     """
 
     def __init__(
@@ -185,6 +197,7 @@ class EmulatedLinkedOrderManager:
         store: LinkedGroupStore | None = None,
         clock: ClockProtocol | None = None,
         bus: LinkedEventEmitter | None = None,
+        allocator: GroupIdAllocator | None = None,
     ) -> None:
         if not config.enabled:
             raise EmulationNotEnabledError
@@ -199,8 +212,10 @@ class EmulatedLinkedOrderManager:
         self._buffer: deque[_Buffered] = deque()
         self._intake = FillIntake()
         self._recovered = False
+        self._allocator = allocator
         self._next_id = 0
-        self._next_id = self._checked_lower_bound()
+        if allocator is None:
+            self._next_id = self._checked_lower_bound()
 
     # ------------------------------------------------------------------ public API
 
@@ -347,16 +362,41 @@ class EmulatedLinkedOrderManager:
         for index, leg in enumerate(spec.ordered_legs()):
             if not self._venue.supports_leg(target, leg):
                 raise UnsupportedLegError(index, leg.role, leg.order_type)
-        group_id = self._checked_lower_bound()  # no await until _next_id is advanced: atomic
-        self._check_codec(group_id, spec)  # places nothing: a rejected id must not reach the HWM
-        self._persist_hwm(group_id)  # fail closed: before the id reaches the venue
-        self._next_id = group_id + 1
+        if self._allocator is not None:
+            group_id = await self._reserve_external()
+            self._check_bound(group_id)
+            self._check_codec(group_id, spec)
+        else:
+            group_id = self._checked_lower_bound()  # no await until _next_id is advanced: atomic
+            self._check_codec(group_id, spec)  # places nothing: a rejected id must not reach HWM
+            self._persist_hwm(group_id)  # fail closed: before the id reaches the venue
+            self._next_id = group_id + 1
         record = new_group(group_id, target, spec, self._now())
         self._store.save(record)  # write-ahead: the group exists before any leg
         group = _Group(record)
         self._groups[group_id] = group
         await self._drive(group)
         return group
+
+    async def _reserve_external(self) -> GroupId:
+        assert self._allocator is not None  # noqa: S101 - narrowing for the type checker
+        try:
+            group_id = await self._allocator.reserve_group_id()
+        except Exception as exc:
+            raise GroupIdPersistenceError(None) from exc
+        if isinstance(group_id, bool) or not isinstance(group_id, int):
+            msg = f"allocator returned a non-int group id: {group_id!r}"
+            raise GroupIdPersistenceError(None) from TypeError(msg)
+        if group_id < 0:
+            msg = f"allocator returned a negative group id: {group_id}"
+            raise GroupIdPersistenceError(None) from ValueError(msg)
+        if group_id in self._groups:
+            raise GroupInvariantError(group_id, "allocator returned an id already in use")
+        return group_id
+
+    def _check_bound(self, group_id: GroupId) -> None:
+        if isinstance(self._codec, BoundedLinkIdCodec) and group_id > self._codec.max_group_id:
+            raise GroupIdSpaceExhaustedError(group_id, self._codec.max_group_id, "allocator")
 
     def _lower_bound(self) -> GroupId:
         """Smallest id that can never have been used: max of the counter, seed, HWM and floor."""
@@ -664,7 +704,8 @@ class EmulatedLinkedOrderManager:
                 if decoded is None:
                     continue
                 group_id, index = decoded
-                self._next_id = max(self._next_id, group_id + 1)
+                if self._allocator is None:
+                    self._next_id = max(self._next_id, group_id + 1)
                 if not self._valid_snapshot(snap, f"list_open_legs for {target}"):
                     continue  # no information: neither an orphan nor a match
                 group = self._groups.get(group_id)
@@ -743,6 +784,8 @@ class EmulatedLinkedOrderManager:
         await self._after(group, io)
 
     def _seed_counter(self) -> None:
+        if self._allocator is not None:
+            return  # the allocator is the only id source
         stored = [gid + 1 for gid in self._groups]
         self._next_id = max([self._next_id, self._checked_lower_bound(), *stored])
 
