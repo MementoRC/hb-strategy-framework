@@ -61,6 +61,8 @@ class GroupIdPersistenceError(LinkedOrderError):
     """The group-id high-water mark could not be saved, or the injected allocator failed.
 
     Nothing was placed (fail closed). `group_id` is None when no id was reserved (allocator).
+
+    Changed in #98: group_id may be None when an injected allocator fails before an id exists.
     """
 
     def __init__(self, group_id: GroupId | None) -> None:

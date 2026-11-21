@@ -181,7 +181,11 @@ class EmulatedLinkedOrderManager:
     ignored (not an error), and `recover()` never derives an id source from decoded group ids
     (foreign ones are still reported as orphans). An allocator failure raises
     `GroupIdPersistenceError` (cause chained) before any write or venue call; an id above a
-    bounded codec's `max_group_id` raises `GroupIdSpaceExhaustedError` (the id is burned).
+    bounded codec's `max_group_id` raises `GroupIdSpaceExhaustedError`. A returned id that is
+    not a non-negative int raises `GroupIdPersistenceError`; one already held by a tracked group
+    raises `GroupInvariantError`. With an allocator, an id rejected by the bound OR the codec is
+    burned (left as a gap, which the protocol allows); a cancellation after the allocator has
+    reserved may also leave a gap.
     """
 
     def __init__(
@@ -377,9 +381,18 @@ class EmulatedLinkedOrderManager:
     async def _reserve_external(self) -> GroupId:
         assert self._allocator is not None  # noqa: S101 - narrowing for the type checker
         try:
-            return await self._allocator.reserve_group_id()
+            group_id = await self._allocator.reserve_group_id()
         except Exception as exc:
             raise GroupIdPersistenceError(None) from exc
+        if isinstance(group_id, bool) or not isinstance(group_id, int):
+            msg = f"allocator returned a non-int group id: {group_id!r}"
+            raise GroupIdPersistenceError(None) from TypeError(msg)
+        if group_id < 0:
+            msg = f"allocator returned a negative group id: {group_id}"
+            raise GroupIdPersistenceError(None) from ValueError(msg)
+        if group_id in self._groups:
+            raise GroupInvariantError(group_id, "allocator returned an id already in use")
+        return group_id
 
     def _check_bound(self, group_id: GroupId) -> None:
         if isinstance(self._codec, BoundedLinkIdCodec) and group_id > self._codec.max_group_id:
