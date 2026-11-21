@@ -186,11 +186,18 @@ class EmulatedLinkedOrderManager:
     raises `GroupInvariantError`. With an allocator, an id rejected by the bound OR the codec is
     burned (left as a gap, which the protocol allows); a cancellation after the allocator has
     reserved may also leave a gap. An allocator id equal to the decoded id of a live orphan leg
-    seen by `recover()` raises `GroupInvariantError` (no write, no venue call).
+    seen by `recover()` raises `GroupInvariantError` (no write, no venue call). This guard is
+    best-effort and does not replace allocator uniqueness. It only covers legs seen by a
+    completed `recover()` scan of the supplied targets. It misses legs on targets not passed to
+    `recover()`, legs hidden when `list_open_legs` fails (logged and treated as empty), and
+    anything placed before `recover()` (set `require_recover_before_place=True` to forbid
+    that). Ids of orphans that later close stay rejected until the next `recover()`. A rejected
+    id is burned as a gap, which the protocol allows.
 
     Multi-manager / multi-host: legs of another manager on the same account look like orphans
-    to this manager's `recover()`, so `cancel_orphans=True` would cancel them. Shared-account
-    deployments must leave `cancel_orphans` off, or scope ownership themselves.
+    to this manager's `recover()`, so `cancel_orphans=True` would try to cancel them (a failing
+    `cancel_leg` is logged, not raised, so a leg may stay live). Shared-account deployments
+    must leave `cancel_orphans` off, or scope ownership themselves.
 
     Mode switching: allocator mode does not advance the high-water store. Switching a deployment
     from allocator mode back to the legacy id source is unsafe unless its id range is
@@ -721,13 +728,14 @@ class EmulatedLinkedOrderManager:
                 group_id, index = decoded
                 if self._allocator is None:
                     self._next_id = max(self._next_id, group_id + 1)
+                group = self._groups.get(group_id)
+                if group is None and self._allocator is not None:
+                    # open on the venue, not adopted; recorded even if the snapshot is rejected
+                    self._live_foreign_ids.add(group_id)
                 if not self._valid_snapshot(snap, f"list_open_legs for {target}"):
                     continue  # no information: neither an orphan nor a match
-                group = self._groups.get(group_id)
                 if group is None:
                     orphans.add(group_id)
-                    if self._allocator is not None:
-                        self._live_foreign_ids.add(group_id)  # open on the venue, not adopted
                     await self._handle_orphan(target, group_id, index, snap)
                 else:
                     await self._match_leg(group, index, snap)

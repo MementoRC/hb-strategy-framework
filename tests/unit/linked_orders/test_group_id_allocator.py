@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import re
+from decimal import Decimal
 from typing import TYPE_CHECKING
 
 import pytest
@@ -246,6 +247,19 @@ async def test_allocator_id_held_by_a_live_orphan_is_rejected(
     assert not manager.has_pending_orders
     handle = await manager.place_oco(TARGET, oco_spec())
     assert handle.group_id == "8"
+
+
+async def test_allocator_id_of_orphan_with_rejected_snapshot_is_still_refused(
+    venue: FakeEmulationVenue, codec: StringLinkIdCodec
+) -> None:
+    cid = await venue.place_leg(TARGET, oco_spec().legs[0], link_tag="hbl-7-0")
+    venue.orders[cid].filled = Decimal(-1)
+    manager = _mgr(venue, codec, ScriptedAllocator([7]), SpyStore())
+    await manager.recover([TARGET])
+    legs = len(venue.calls("place_leg"))
+    with pytest.raises(GroupInvariantError):
+        await manager.place_oco(TARGET, oco_spec())
+    assert len(venue.calls("place_leg")) == legs
 
 
 async def test_hwm_store_and_seed_are_not_consulted(
