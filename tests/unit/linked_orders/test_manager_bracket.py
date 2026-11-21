@@ -27,6 +27,7 @@ if TYPE_CHECKING:
     from strategy_framework.linked_orders.manager import EmulatedLinkedOrderManager
     from strategy_framework.testing.fake_linked_venue import (
         FakeEmulationVenue,
+        ManualClock,
         RecordingEmitter,
     )
 
@@ -58,7 +59,7 @@ async def test_partial_entry_fill_only_updates_the_leg(
 
 
 async def test_entry_filled_waits_for_get_leg_then_places_exits(
-    manager: EmulatedLinkedOrderManager, venue: FakeEmulationVenue
+    manager: EmulatedLinkedOrderManager, venue: FakeEmulationVenue, clock: ManualClock
 ) -> None:
     await manager.place_bracket(TARGET, bracket_spec())
     venue.script_get(None)  # the first confirmation has no answer
@@ -66,6 +67,7 @@ async def test_entry_filled_waits_for_get_leg_then_places_exits(
     await manager.on_order_update(venue.update("fake-1", OS.FILLED))
     assert record(manager).state is S.ENTRY_WORKING  # filled == 0 locally: unconfirmed
     assert len(venue.calls("place_leg")) == 1
+    clock.advance(1)  # the first retry waits one backoff base
     await manager.tick()  # get_leg now answers with filled == 2
     assert record(manager).state is S.ARMED
     assert [leg(manager, i).placed_amount for i in (1, 2)] == [D(2), D(2)]

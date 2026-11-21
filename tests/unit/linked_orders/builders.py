@@ -17,6 +17,7 @@ from data_type_primitives import (
     TriggerSpec,
 )
 
+from strategy_framework.linked_orders.config import RetryBackoff
 from strategy_framework.linked_orders.state import (
     CancelLeg,
     Delete,
@@ -181,11 +182,11 @@ class Sim:
     def cancel(self) -> Sim:
         return self._apply(request_cancel(self.rec, self.now, closed=self.closed))
 
-    def tick(self, dt: float = 0.0, grace: float = 30.0) -> Sim:
+    def tick(self, dt: float = 0.0, grace: float = 30.0, retry: RetryBackoff | None = None) -> Sim:
         self.now += dt
         if self.closed:
             return self
-        return self._apply(tick(self.rec, self.now, grace))
+        return self._apply(tick(self.rec, self.now, grace, retry or RetryBackoff()))
 
     # -- views
 

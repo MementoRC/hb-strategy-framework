@@ -20,7 +20,12 @@ from strategy_framework.linked_orders.config import LinkedOrderManagerConfig
 from strategy_framework.linked_orders.errors import LinkedGroupNotFoundError
 from strategy_framework.linked_orders.events import LinkedEventKind
 from strategy_framework.linked_orders.manager import EmulatedLinkedOrderManager
-from strategy_framework.linked_orders.state import any_unresolved, is_terminal, is_unresolved
+from strategy_framework.linked_orders.state import (
+    any_unresolved,
+    durable,
+    is_terminal,
+    is_unresolved,
+)
 from strategy_framework.linked_orders.types import CancelOutcome, GroupState, LegFill
 from strategy_framework.testing.fake_linked_venue import (
     FakeEmulationVenue,
@@ -162,7 +167,7 @@ class Checker:
             if group.closed:
                 if not all(is_terminal(leg) for leg in rec.legs) or gid in stored:
                     out.append(f"I2: group {gid} closed but not terminal / still stored")
-            elif stored.get(gid) != rec:
+            elif (s := stored.get(gid)) is None or durable(s) != durable(rec):
                 out.append(f"I7: group {gid} live record differs from the stored record")
         return out
 

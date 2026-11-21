@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING, Any
 
 from data_type_primitives import LegRole, LinkedCancelStatus, LinkKind
 
+from strategy_framework.linked_orders.config import RetryBackoff
 from strategy_framework.linked_orders.events import LinkedEventKind, LinkedGroupEvent
 from strategy_framework.linked_orders.types import (
     OUTCOME_STATES,
@@ -276,6 +277,8 @@ class _Ctx:
     # -- primitives
 
     def set_leg(self, index: int, **changes: Any) -> None:
+        if "unresolved_since" in changes and changes["unresolved_since"] is None:
+            changes.update(retry_at=None, retry_delay_s=None)  # resolved: backoff starts fresh
         legs = list(self.rec.legs)
         legs[index] = replace(legs[index], **changes)
         self.rec = replace(self.rec, legs=tuple(legs))
@@ -548,7 +551,7 @@ class _Ctx:
     # -- result
 
     def finish(self) -> Transition:
-        changed = self.rec != self.orig
+        changed = durable(self.rec) != durable(self.orig)
         head: list[Action] = []
         if self.delete:
             head.append(Delete())
@@ -557,6 +560,12 @@ class _Ctx:
             if not self.closed or reopened:
                 head.append(Persist())
         return Transition(self.rec, tuple(head) + tuple(self.effects))
+
+
+def durable(record: GroupRecord) -> GroupRecord:
+    """The record without transient retry state: only durable changes trigger `Persist`."""
+    legs = tuple(replace(leg, retry_at=None, retry_delay_s=None) for leg in record.legs)
+    return replace(record, legs=legs)
 
 
 def _run(record: GroupRecord, now: float, closed: bool, body: Callable[[_Ctx], None]) -> Transition:
@@ -829,8 +838,18 @@ def mark_link_broken(
     return _run(record, now, closed, body)
 
 
-def tick(record: GroupRecord, now: float, grace_period_s: float) -> Transition:
-    """Rows 20/21: grace check and `get_leg` retries for every unresolved leg."""
+def tick(
+    record: GroupRecord,
+    now: float,
+    grace_period_s: float,
+    retry: RetryBackoff = RetryBackoff(),  # noqa: B008  (frozen, immutable default)
+) -> Transition:
+    """Rows 20/21: grace check and backed-off `get_leg` retries for unresolved legs.
+
+    A leg is retried no earlier than `retry.base_s` after it became unresolved (or after the last
+    attempt); the gap then grows by `retry.multiplier`, capped at `retry.max_s`. The grace check
+    is unaffected: it is measured from `unresolved_since`.
+    """
     ctx = _Ctx(record, now)
     ctx.settle()
     unresolved = [leg for leg in ctx.rec.legs if is_unresolved(leg)]
@@ -840,8 +859,26 @@ def tick(record: GroupRecord, now: float, grace_period_s: float) -> Transition:
             detail=f"leg(s) {[leg.leg_index for leg in unresolved]} unresolved past grace",
         )
         ctx.settle()
-    ctx.effects.extend(GetLeg(leg.leg_index) for leg in unresolved if leg.client_order_id)
+    for leg in unresolved:
+        if _lookup_key(leg) and _retry_due(leg, now, retry):
+            delay = min((leg.retry_delay_s or retry.base_s) * retry.multiplier, retry.max_s)
+            ctx.set_leg(leg.leg_index, retry_at=now + delay, retry_delay_s=delay)
+            ctx.effects.append(GetLeg(leg.leg_index))
     return ctx.finish()
+
+
+def _lookup_key(leg: LegRecord) -> bool:
+    """True if `get_leg` can address the leg: by client order id, else by link tag (write-ahead)."""
+    return leg.client_order_id is not None or (
+        leg.link_tag is not None and leg.status in _UNRESOLVED_STATUSES
+    )
+
+
+def _retry_due(leg: LegRecord, now: float, retry: RetryBackoff) -> bool:
+    due = leg.retry_at
+    if due is None:
+        due = (leg.unresolved_since if leg.unresolved_since is not None else now) + retry.base_s
+    return now >= due
 
 
 def make_handle(record: GroupRecord) -> OcoHandle | BracketHandle:

@@ -129,6 +129,9 @@ class LegRecord:
     cancel_requested: bool = False
     cancel_outcome: CancelOutcome | None = None
     unresolved_since: float | None = None
+    # Transient get_leg backoff state: never a persist trigger, cleared on load and on resolution.
+    retry_at: float | None = None
+    retry_delay_s: float | None = None
 
 
 @dataclass(frozen=True)
