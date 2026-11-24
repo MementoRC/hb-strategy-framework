@@ -11,9 +11,13 @@ permissions:
   contents: read
 jobs:
   security:
-    uses: Claire-s-Monster/ci-framework/.github/workflows/reusable-security.yml@0ca97504ab812f21c3ae45411423f8675f8188e6 # v4.4.1
+    uses: Claire-s-Monster/ci-framework/.github/workflows/reusable-security.yml@b1ae948fdca0c35d8ec8fa0e432cb85cf1543b8b # v5.1.1
+    with:
+      # v5: reusable-ci owns CodeQL on push/PR; keep the weekly/manual CodeQL scan here.
+      codeql: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
     permissions:
       contents: read
       actions: read
       id-token: write
+      security-events: write
     secrets: inherit  # pragma: allowlist secret
