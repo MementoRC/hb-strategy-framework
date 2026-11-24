@@ -9,9 +9,15 @@ on:
       - 'mkdocs.yml'
       - '.github/workflows/gh-deploy.yml'
 
+permissions:
+  contents: read
+
 jobs:
   deploy-docs:
     runs-on: ubuntu-latest
+    # Currently non-functional (no hatch docs env). If restored with `mkdocs gh-deploy` (pushes to gh-pages), this job needs `contents: write`; if switched to actions/deploy-pages, use `pages: write` + `id-token: write`.
+    permissions:
+      contents: read
     defaults:
       run:
         shell: bash -l {0}
