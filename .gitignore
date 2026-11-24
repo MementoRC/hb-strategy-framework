@@ -57,6 +57,7 @@ venv.bak/
 # Documentation
 docs/_build/
 docs/site/
+site/
 
 # Cython generated files
 *.c

@@ -5,6 +5,12 @@ site_author: 'Hummingbot Team'
 repo_name: 'MementoRC/hb-strategy-framework'
 repo_url: 'https://github.com/MementoRC/hb-strategy-framework'
 
+docs_dir: docs
+site_dir: site
+
+exclude_docs: |
+  superpowers/
+
 theme:
   name: 'material'
   palette:
@@ -38,15 +44,18 @@ markdown_extensions:
 
 nav:
   - Home: index.md
-  - Getting Started:
-    - Installation: getting_started/installation.md
-    - Quick Start: getting_started/quick_start.md
-  - Adapters:
-    - Overview: adapters/overview.md
-    - Implementation: adapters/implementation.md
-    - REST API: adapters/rest_api.md
-    - WebSocket: adapters/websocket.md
-    - Testing: adapters/testing.md
+  - API Reference:
+    - Overview: api/index.md
+    - building_blocks: api/building_blocks.md
+    - config: api/config.md
+    - executors: api/executors.md
+    - hb_compat: api/hb_compat.md
+    - linked_orders: api/linked_orders.md
+    - mixins: api/mixins.md
+    - orchestrator: api/orchestrator.md
+    - primitives: api/primitives.md
+    - protocols: api/protocols.md
+    - testing: api/testing.md
 
 extra_css:
   - stylesheets/extra.css
@@ -57,8 +66,16 @@ plugins:
       default_handler: python
       handlers:
         python:
-          selection:
+          paths: [.]
+          options:
             docstring_style: google
-          rendering:
-            show_source: true
-  - git-revision-date-localized
+            show_source: false
+            show_root_heading: true
+            show_root_full_path: false
+            show_symbol_type_heading: true
+            members_order: source
+            filters:
+              - "!^_"
+            merge_init_into_class: true
+  - git-revision-date-localized:
+      fallback_to_build_date: true

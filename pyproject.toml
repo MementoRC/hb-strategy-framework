@@ -138,7 +138,18 @@ hatchling = ">=1.18"
 [tool.pixi.feature.py312.dependencies]
 python = "3.12.*"
 
+[tool.pixi.feature.docs.dependencies]
+mkdocs = ">=1.6"
+mkdocs-material = ">=9"
+mkdocstrings-python = ">=1"
+mkdocs-git-revision-date-localized-plugin = ">=1"
+
+[tool.pixi.feature.docs.tasks]
+docs-build = "mkdocs build --strict"
+docs-serve = "mkdocs serve"
+
 [tool.pixi.environments]
+docs = { features = ["docs"], no-default-feature = true }
 default = { features = ["dev"], solve-group = "default" }
 ci = { features = ["ci", "dev"], solve-group = "default" }
 quality-ci = { features = ["ci", "dev"], solve-group = "default" }
