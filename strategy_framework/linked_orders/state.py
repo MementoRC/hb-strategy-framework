@@ -17,7 +17,10 @@ from typing import TYPE_CHECKING, Any
 
 from data_type_primitives import LegRole, LinkedCancelStatus, LinkKind
 
-from strategy_framework.linked_orders.config import RetryBackoff
+from strategy_framework.linked_orders.config import (
+    DEFAULT_UNDERSTATED_FILL_CONFIRMATIONS,
+    RetryBackoff,
+)
 from strategy_framework.linked_orders.events import LinkedEventKind, LinkedGroupEvent
 from strategy_framework.linked_orders.types import (
     OUTCOME_STATES,
@@ -265,7 +268,15 @@ class FillIntake:
 class _Ctx:
     """Mutable scratch space for one transition; never escapes this module."""
 
-    def __init__(self, record: GroupRecord, now: float, *, closed: bool = False) -> None:
+    def __init__(
+        self,
+        record: GroupRecord,
+        now: float,
+        *,
+        closed: bool = False,
+        confirmations: int = DEFAULT_UNDERSTATED_FILL_CONFIRMATIONS,
+    ) -> None:
+        self.confirmations = confirmations
         self.orig = record
         self.rec = record
         self.now = now
@@ -329,19 +340,47 @@ class _Ctx:
 
     # -- leg merge
 
-    def merge(self, index: int, status: LegStatus, filled: Decimal, *, confirmed: bool) -> bool:
-        """Apply a status/fill under the monotonic rule. Returns True if the leg changed."""
+    def _understated(
+        self, leg: LegRecord, status: LegStatus, filled: Decimal, *, report: bool
+    ) -> tuple[bool, int, Decimal | None]:
+        """(hold, reports, reported) for a terminal FILLED leg whose fill may be understated.
+
+        filled == 0 is always held. 0 < filled < placed is held until the venue has reported
+        FILLED with this same filled `confirmations` times in a row (a changed value restarts the
+        count; fill events are not `report`s), which covers lot rounding and fee netting.
+        """
+        if status not in _FILLED_STATUSES:
+            return False, 0, None
+        if filled == _ZERO:
+            return True, 0, None
+        if filled >= leg.placed_amount:
+            return False, 0, None
+        reports = (leg.fill_reports if filled == leg.fill_reported else 0) + int(report)
+        return reports < self.confirmations, reports, filled
+
+    def merge(
+        self,
+        index: int,
+        status: LegStatus,
+        filled: Decimal,
+        *,
+        confirmed: bool,
+        report: bool = False,
+    ) -> bool:
+        """Apply a status/fill under the monotonic rule. Returns True if the leg changed.
+
+        `report` marks a venue report that carries a status (snapshot or order update).
+        """
         leg = self.rec.legs[index]
         new_status = merge_status(leg.status, status)
         new_filled = merge_filled(leg.filled, filled)
-        if not confirmed and new_status is leg.status and new_filled == leg.filled:
+        understated_done, reports, reported = self._understated(
+            leg, new_status, new_filled, report=report
+        )
+        counted = report and reported is not None
+        if not (confirmed or counted) and new_status is leg.status and new_filled == leg.filled:
             return False
         term = new_status in TERMINAL_STATUSES
-        # A terminal FILLED report with no fill, or less than was placed, is not trusted as
-        # final (venues may lag or report 0): hold the leg unresolved until a fill catches up.
-        understated_done = new_status in _FILLED_STATUSES and (
-            new_filled == _ZERO or new_filled < leg.placed_amount
-        )
         cancel_outcome, cancel_requested = leg.cancel_outcome, leg.cancel_requested
         if confirmed:
             if cancel_outcome in _CANCEL_UNCERTAIN:
@@ -363,6 +402,8 @@ class _Ctx:
             index,
             status=new_status,
             filled=new_filled,
+            fill_reports=reports,
+            fill_reported=reported,
             cancel_outcome=cancel_outcome,
             cancel_requested=cancel_requested,
             unresolved_since=(leg.unresolved_since or self.now) if awaiting else None,
@@ -568,12 +609,21 @@ class _Ctx:
 
 def durable(record: GroupRecord) -> GroupRecord:
     """The record without transient retry state: only durable changes trigger `Persist`."""
-    legs = tuple(replace(leg, retry_at=None, retry_delay_s=None) for leg in record.legs)
+    legs = tuple(
+        replace(leg, retry_at=None, retry_delay_s=None, fill_reported=None, fill_reports=0)
+        for leg in record.legs
+    )
     return replace(record, legs=legs)
 
 
-def _run(record: GroupRecord, now: float, closed: bool, body: Callable[[_Ctx], None]) -> Transition:
-    ctx = _Ctx(record, now, closed=closed)
+def _run(
+    record: GroupRecord,
+    now: float,
+    closed: bool,
+    body: Callable[[_Ctx], None],
+    confirmations: int = DEFAULT_UNDERSTATED_FILL_CONFIRMATIONS,
+) -> Transition:
+    ctx = _Ctx(record, now, closed=closed, confirmations=confirmations)
     body(ctx)
     ctx.settle()
     return ctx.finish()
@@ -639,7 +689,7 @@ def _replay(ctx: _Ctx, index: int, items: Sequence[OrderState | LegFill]) -> Non
         if isinstance(item, LegFill):
             _merge_fill(ctx, index, item)
         else:
-            ctx.merge(index, LegStatus.from_order_state(item), _ZERO, confirmed=False)
+            ctx.merge(index, LegStatus.from_order_state(item), _ZERO, confirmed=False, report=True)
 
 
 def leg_placed(
@@ -650,6 +700,7 @@ def leg_placed(
     *,
     closed: bool = False,
     replay: Sequence[OrderState | LegFill] = (),
+    confirmations: int = DEFAULT_UNDERSTATED_FILL_CONFIRMATIONS,
 ) -> Transition:
     """`place_leg` returned: register the id (the leg is OPEN until a report says otherwise).
 
@@ -668,7 +719,7 @@ def leg_placed(
         )
         _replay(ctx, leg_index, replay)
 
-    return _run(record, now, closed, body)
+    return _run(record, now, closed, body, confirmations)
 
 
 def leg_unknown(
@@ -679,6 +730,7 @@ def leg_unknown(
     *,
     closed: bool = False,
     replay: Sequence[OrderState | LegFill] = (),
+    confirmations: int = DEFAULT_UNDERSTATED_FILL_CONFIRMATIONS,
 ) -> Transition:
     """Row 5: `OrderOutcomeUnknownError`; the leg is UNKNOWN and unresolved."""
 
@@ -692,7 +744,7 @@ def leg_unknown(
         )
         _replay(ctx, leg_index, replay)
 
-    return _run(record, now, closed, body)
+    return _run(record, now, closed, body, confirmations)
 
 
 def leg_rejected(
@@ -726,6 +778,7 @@ def apply_update(
     now: float,
     *,
     closed: bool = False,
+    confirmations: int = DEFAULT_UNDERSTATED_FILL_CONFIRMATIONS,
 ) -> Transition:
     """Row 6/24: an order-state report. Unknown ids and stale reports change nothing."""
     index = find_leg(record, client_order_id)
@@ -733,9 +786,9 @@ def apply_update(
         return Transition(record)
 
     def body(ctx: _Ctx) -> None:
-        ctx.merge(index, LegStatus.from_order_state(new_state), _ZERO, confirmed=False)
+        ctx.merge(index, LegStatus.from_order_state(new_state), _ZERO, confirmed=False, report=True)
 
-    return _run(record, now, closed, body)
+    return _run(record, now, closed, body, confirmations)
 
 
 def apply_fill(
@@ -755,6 +808,7 @@ def apply_snapshot(
     now: float,
     *,
     closed: bool = False,
+    confirmations: int = DEFAULT_UNDERSTATED_FILL_CONFIRMATIONS,
 ) -> Transition:
     """Row 6/21: a `get_leg` answer. A snapshot confirms; None is not proof of anything."""
 
@@ -769,9 +823,10 @@ def apply_snapshot(
             LegStatus.from_order_state(snapshot.state),
             snapshot.filled,
             confirmed=True,
+            report=True,
         )
 
-    return _run(record, now, closed, body)
+    return _run(record, now, closed, body, confirmations)
 
 
 def apply_cancel_outcome(

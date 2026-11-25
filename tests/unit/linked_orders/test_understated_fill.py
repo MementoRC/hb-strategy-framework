@@ -5,8 +5,13 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
+import pytest
 from data_type_primitives import OrderState
 
+from strategy_framework.linked_orders.config import (
+    DEFAULT_UNDERSTATED_FILL_CONFIRMATIONS,
+    LinkedOrderManagerConfig,
+)
 from strategy_framework.linked_orders.types import DegradedReason, GroupState, LegStatus
 from tests.unit.linked_orders.builders import Sim, bracket_spec
 from tests.unit.linked_orders.manager_helpers import TARGET, leg, record
@@ -53,11 +58,84 @@ def test_full_fill_resolves_immediately_and_canceled_zero_fill_unchanged() -> No
     assert canceled.rec.state is GroupState.CANCELED
 
 
-def test_persistently_understated_fill_degrades_past_grace() -> None:
-    sim = Sim(bracket_spec()).place(0).snap(0, OrderState.FILLED, 1)
+def test_changing_understated_fill_degrades_past_grace() -> None:
+    sim = Sim(bracket_spec()).place(0)
+    for value in ("1", "1.1", "1.2", "1.3"):
+        sim.snap(0, OrderState.FILLED, value)
     sim.tick(31)
     assert sim.rec.state is GroupState.DEGRADED
     assert DegradedReason.UNRESOLVED_PAST_GRACE in sim.rec.degraded_reasons
+
+
+def test_zero_fill_filled_is_never_accepted_however_often_repeated() -> None:
+    sim = Sim(bracket_spec()).place(0)
+    for _ in range(10):
+        sim.snap(0, OrderState.FILLED, 0)
+    assert sim.leg(0).unresolved_since is not None
+    assert len(sim.rec.legs) == 1
+    sim.tick(31)
+    assert DegradedReason.UNRESOLVED_PAST_GRACE in sim.rec.degraded_reasons
+
+
+def test_fewer_than_n_identical_reports_stay_unresolved() -> None:
+    sim = Sim(bracket_spec()).place(0)
+    for _ in range(DEFAULT_UNDERSTATED_FILL_CONFIRMATIONS - 1):
+        sim.snap(0, OrderState.FILLED, 1)
+    assert sim.leg(0).unresolved_since is not None
+    assert sim.rec.state is GroupState.ENTRY_WORKING
+    assert len(sim.rec.legs) == 1
+
+
+def test_n_identical_reports_accept_and_size_exits_on_reported_fill() -> None:
+    sim = Sim(bracket_spec()).place(0)
+    for _ in range(DEFAULT_UNDERSTATED_FILL_CONFIRMATIONS):
+        sim.snap(0, OrderState.FILLED, 1)
+    assert sim.leg(0).unresolved_since is None
+    assert sim.rec.state is GroupState.EXITS_PLACING
+    sim.tick(31)
+    assert DegradedReason.UNRESOLVED_PAST_GRACE not in sim.rec.degraded_reasons
+    sim.begin(1)
+    assert sim.leg(1).placed_amount == D(1)
+
+
+def test_order_updates_count_as_reports_but_fill_events_do_not() -> None:
+    sim = Sim(bracket_spec()).place(0).snap(0, OrderState.FILLED, 1)
+    sim.update(0, OrderState.FILLED)
+    assert sim.leg(0).unresolved_since is not None
+    sim.update(0, OrderState.FILLED)
+    assert sim.leg(0).unresolved_since is None
+    fills = Sim(bracket_spec()).place(0).fill(0, 1)
+    for _ in range(5):
+        fills.fill(0, 1)
+    assert fills.leg(0).status is LegStatus.PARTIALLY_FILLED
+
+
+def test_changed_value_restarts_the_count() -> None:
+    sim = Sim(bracket_spec()).place(0)
+    sim.snap(0, OrderState.FILLED, 1).snap(0, OrderState.FILLED, 1)
+    sim.snap(0, OrderState.FILLED, "1.5")
+    assert sim.leg(0).unresolved_since is not None
+    sim.snap(0, OrderState.FILLED, "1.5").snap(0, OrderState.FILLED, "1.5")
+    assert sim.leg(0).unresolved_since is None
+    sim.begin(1)
+    assert sim.leg(1).placed_amount == D("1.5")
+
+
+def test_accepted_leg_does_not_regress_on_duplicate_or_lower_fill_events() -> None:
+    sim = Sim(bracket_spec()).place(0)
+    for _ in range(DEFAULT_UNDERSTATED_FILL_CONFIRMATIONS):
+        sim.snap(0, OrderState.FILLED, 1)
+    for cumulative in ("1", "0.5"):
+        sim.fill(0, cumulative)
+        assert sim.leg(0).status is LegStatus.FILLED
+        assert sim.leg(0).unresolved_since is None
+        assert sim.rec.state is GroupState.EXITS_PLACING
+
+
+def test_confirmations_config_rejects_zero() -> None:
+    assert LinkedOrderManagerConfig().understated_fill_confirmations == 3
+    with pytest.raises(ValueError, match="understated_fill_confirmations"):
+        LinkedOrderManagerConfig(understated_fill_confirmations=0)
 
 
 async def test_recover_holds_understated_filled_leg_unresolved(
