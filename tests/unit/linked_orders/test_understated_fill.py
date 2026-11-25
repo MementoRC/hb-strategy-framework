@@ -98,16 +98,67 @@ def test_n_identical_reports_accept_and_size_exits_on_reported_fill() -> None:
     assert sim.leg(1).placed_amount == D(1)
 
 
-def test_order_updates_count_as_reports_but_fill_events_do_not() -> None:
+def test_order_updates_never_count_only_snapshots_do() -> None:
     sim = Sim(bracket_spec()).place(0).snap(0, OrderState.FILLED, 1)
-    sim.update(0, OrderState.FILLED)
+    for _ in range(5):
+        sim.update(0, OrderState.FILLED)
+    assert sim.leg(0).fill_reports == 1
     assert sim.leg(0).unresolved_since is not None
-    sim.update(0, OrderState.FILLED)
+    sim.snap(0, OrderState.FILLED, 1)
+    assert sim.leg(0).unresolved_since is not None
+    sim.snap(0, OrderState.FILLED, 1)
     assert sim.leg(0).unresolved_since is None
+
+
+def test_order_update_with_other_status_resets_the_count() -> None:
+    sim = Sim(bracket_spec()).place(0)
+    sim.snap(0, OrderState.FILLED, 1).snap(0, OrderState.FILLED, 1)
+    sim.update(0, OrderState.OPEN)
+    assert sim.leg(0).fill_reports == 0
+    assert sim.leg(0).status is LegStatus.FILLED
+    sim.snap(0, OrderState.FILLED, 1).snap(0, OrderState.FILLED, 1)
+    assert sim.leg(0).unresolved_since is not None
+    sim.snap(0, OrderState.FILLED, 1)
+    assert sim.leg(0).unresolved_since is None
+
+
+def test_fill_events_below_placed_never_increment_the_count() -> None:
+    sim = Sim(bracket_spec()).place(0).snap(0, OrderState.FILLED, 1)
+    assert sim.leg(0).fill_reports == 1
+    for _ in range(5):
+        sim.fill(0, 1)
+    assert sim.leg(0).fill_reports == 1
+    assert sim.leg(0).unresolved_since is not None
     fills = Sim(bracket_spec()).place(0).fill(0, 1)
     for _ in range(5):
         fills.fill(0, 1)
     assert fills.leg(0).status is LegStatus.PARTIALLY_FILLED
+    assert fills.leg(0).fill_reports == 0
+
+
+def test_larger_fill_event_between_snapshots_restarts_the_count() -> None:
+    sim = Sim(bracket_spec()).place(0)
+    sim.snap(0, OrderState.FILLED, 1).snap(0, OrderState.FILLED, 1)
+    sim.fill(0, "1.5")
+    assert sim.leg(0).fill_reports == 0
+    for _ in range(DEFAULT_UNDERSTATED_FILL_CONFIRMATIONS - 1):
+        sim.snap(0, OrderState.FILLED, "1.5")
+        assert sim.leg(0).unresolved_since is not None
+    sim.snap(0, OrderState.FILLED, "1.5")
+    assert sim.leg(0).unresolved_since is None
+    assert sim.leg(0).filled == D("1.5")
+
+
+def test_stale_lower_snapshot_resets_count_and_does_not_move_status() -> None:
+    sim = Sim(bracket_spec()).place(0).fill(0, "1.5")
+    sim.snap(0, OrderState.FILLED, 1)
+    assert sim.leg(0).status is LegStatus.PARTIALLY_FILLED
+    assert sim.leg(0).filled == D("1.5")
+    assert sim.leg(0).fill_reports == 0
+    sim.snap(0, OrderState.FILLED, "1.5").snap(0, OrderState.FILLED, "1.5")
+    sim.snap(0, OrderState.FILLED, 1)
+    assert sim.leg(0).fill_reports == 0
+    assert sim.leg(0).unresolved_since is not None
 
 
 def test_changed_value_restarts_the_count() -> None:
@@ -130,6 +181,23 @@ def test_accepted_leg_does_not_regress_on_duplicate_or_lower_fill_events() -> No
         assert sim.leg(0).status is LegStatus.FILLED
         assert sim.leg(0).unresolved_since is None
         assert sim.rec.state is GroupState.EXITS_PLACING
+
+
+def test_lower_fill_after_acceptance_leaves_filled_and_status_unchanged() -> None:
+    sim = Sim(bracket_spec()).place(0)
+    for _ in range(DEFAULT_UNDERSTATED_FILL_CONFIRMATIONS):
+        sim.snap(0, OrderState.FILLED, 1)
+    before = sim.leg(0)
+    sim.fill(0, "0.5")
+    after = sim.leg(0)
+    assert after.filled == D(1)
+    assert after.status is LegStatus.FILLED
+    assert after.fill_reports == before.fill_reports
+    assert after.unresolved_since is None
+    sim.snap(0, OrderState.FILLED, "0.5")
+    assert sim.leg(0).filled == D(1)
+    assert sim.leg(0).status is LegStatus.FILLED
+    assert sim.leg(0).unresolved_since is None
 
 
 def test_confirmations_config_rejects_zero() -> None:

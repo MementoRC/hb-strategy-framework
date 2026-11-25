@@ -341,13 +341,22 @@ class _Ctx:
     # -- leg merge
 
     def _understated(
-        self, leg: LegRecord, status: LegStatus, filled: Decimal, *, report: bool
+        self,
+        leg: LegRecord,
+        status: LegStatus,
+        filled: Decimal,
+        in_status: LegStatus,
+        in_filled: Decimal,
+        *,
+        polled: bool,
     ) -> tuple[bool, int, Decimal | None]:
         """(hold, reports, reported) for a terminal FILLED leg whose fill may be understated.
 
-        filled == 0 is always held. 0 < filled < placed is held until the venue has reported
-        FILLED with this same filled `confirmations` times in a row (a changed value restarts the
-        count; fill events are not `report`s), which covers lot rounding and fee netting.
+        filled == 0 is always held. 0 < filled < placed is held until `confirmations` polled
+        snapshots in a row (`polled`: get_leg / list_open_legs answers) each report FILLED with
+        this same filled value. Any other report (different status, different or lower filled)
+        resets the count, and order updates / fill events / replays never count. This covers lot
+        rounding and fee netting. Once accepted, the leg stays accepted for that value.
         """
         if status not in _FILLED_STATUSES:
             return False, 0, None
@@ -355,8 +364,16 @@ class _Ctx:
             return True, 0, None
         if filled >= leg.placed_amount:
             return False, 0, None
-        reports = (leg.fill_reports if filled == leg.fill_reported else 0) + int(report)
-        return reports < self.confirmations, reports, filled
+        if filled == leg.fill_reported and leg.fill_reports >= self.confirmations:
+            return False, leg.fill_reports, leg.fill_reported
+        same = in_status in _FILLED_STATUSES and filled == leg.fill_reported
+        if polled:
+            if in_status not in _FILLED_STATUSES or in_filled != filled:
+                return True, 0, None  # stale, lower or different report: restart
+            reports = (leg.fill_reports if same else 0) + 1
+        else:
+            reports = leg.fill_reports if same else 0
+        return reports < self.confirmations, reports, filled if reports else None
 
     def merge(
         self,
@@ -365,20 +382,24 @@ class _Ctx:
         filled: Decimal,
         *,
         confirmed: bool,
-        report: bool = False,
     ) -> bool:
         """Apply a status/fill under the monotonic rule. Returns True if the leg changed.
 
-        `report` marks a venue report that carries a status (snapshot or order update).
+        `confirmed` marks a polled snapshot: the only report that counts toward understated-fill
+        acceptance.
         """
         leg = self.rec.legs[index]
-        new_status = merge_status(leg.status, status)
+        # A snapshot below the recorded fill is stale: it must not move the status.
+        stale = confirmed and filled < leg.filled and status in _FILLED_STATUSES
+        new_status = merge_status(leg.status, leg.status if stale else status)
         new_filled = merge_filled(leg.filled, filled)
         understated_done, reports, reported = self._understated(
-            leg, new_status, new_filled, report=report
+            leg, new_status, new_filled, status, filled, polled=confirmed
         )
-        counted = report and reported is not None
-        if not (confirmed or counted) and new_status is leg.status and new_filled == leg.filled:
+        counting_changed = (reports, reported) != (leg.fill_reports, leg.fill_reported)
+        if not (confirmed or counting_changed) and (
+            new_status is leg.status and new_filled == leg.filled
+        ):
             return False
         term = new_status in TERMINAL_STATUSES
         cancel_outcome, cancel_requested = leg.cancel_outcome, leg.cancel_requested
@@ -689,7 +710,7 @@ def _replay(ctx: _Ctx, index: int, items: Sequence[OrderState | LegFill]) -> Non
         if isinstance(item, LegFill):
             _merge_fill(ctx, index, item)
         else:
-            ctx.merge(index, LegStatus.from_order_state(item), _ZERO, confirmed=False, report=True)
+            ctx.merge(index, LegStatus.from_order_state(item), _ZERO, confirmed=False)
 
 
 def leg_placed(
@@ -786,7 +807,7 @@ def apply_update(
         return Transition(record)
 
     def body(ctx: _Ctx) -> None:
-        ctx.merge(index, LegStatus.from_order_state(new_state), _ZERO, confirmed=False, report=True)
+        ctx.merge(index, LegStatus.from_order_state(new_state), _ZERO, confirmed=False)
 
     return _run(record, now, closed, body, confirmations)
 
@@ -823,7 +844,6 @@ def apply_snapshot(
             LegStatus.from_order_state(snapshot.state),
             snapshot.filled,
             confirmed=True,
-            report=True,
         )
 
     return _run(record, now, closed, body, confirmations)
