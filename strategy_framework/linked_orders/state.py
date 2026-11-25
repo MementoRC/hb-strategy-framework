@@ -337,13 +337,17 @@ class _Ctx:
         if not confirmed and new_status is leg.status and new_filled == leg.filled:
             return False
         term = new_status in TERMINAL_STATUSES
-        zero_fill_done = new_status in _FILLED_STATUSES and new_filled == _ZERO
+        # A terminal FILLED report with no fill, or less than was placed, is not trusted as
+        # final (venues may lag or report 0): hold the leg unresolved until a fill catches up.
+        understated_done = new_status in _FILLED_STATUSES and (
+            new_filled == _ZERO or new_filled < leg.placed_amount
+        )
         cancel_outcome, cancel_requested = leg.cancel_outcome, leg.cancel_requested
         if confirmed:
             if cancel_outcome in _CANCEL_UNCERTAIN:
                 cancel_outcome = None
                 cancel_requested = cancel_requested and term
-            awaiting = new_status in _UNRESOLVED_STATUSES or zero_fill_done
+            awaiting = new_status in _UNRESOLVED_STATUSES or understated_done
         else:
             is_entry = self.rec.spec.kind is LinkKind.BRACKET and index == 0
             entry_pending = is_entry and term and (not is_terminal(leg) or new_filled > leg.filled)
@@ -352,7 +356,7 @@ class _Ctx:
                 new_status in _UNRESOLVED_STATUSES
                 or uncertain_cancel
                 or entry_pending
-                or zero_fill_done
+                or understated_done
             )
         changed = new_status is not leg.status or new_filled != leg.filled
         self.set_leg(
