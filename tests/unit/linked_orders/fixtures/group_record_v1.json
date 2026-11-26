@@ -1,0 +1,100 @@
+{
+  "schema_version": 1,
+  "group_id": 42,
+  "target": "BTC-USD",
+  "spec": {
+    "kind": "bracket",
+    "legs": [
+      {
+        "role": "entry",
+        "order_type": "LIMIT",
+        "trade_type": "BUY",
+        "amount": "2",
+        "price": "100",
+        "trigger": null,
+        "limit_offset": null
+      },
+      {
+        "role": "take_profit",
+        "order_type": "LIMIT",
+        "trade_type": "SELL",
+        "amount": "2",
+        "price": "110",
+        "trigger": null,
+        "limit_offset": null
+      },
+      {
+        "role": "stop_loss",
+        "order_type": "STOP_LOSS",
+        "trade_type": "SELL",
+        "amount": "2",
+        "price": null,
+        "trigger": {
+          "kind": "absolute",
+          "value": "90",
+          "reference": "last",
+          "trail": null
+        },
+        "limit_offset": null
+      }
+    ]
+  },
+  "state": "degraded",
+  "legs": [
+    {
+      "leg_index": 0,
+      "role": "entry",
+      "link_tag": "tag-entry",
+      "client_order_id": "c0",
+      "status": "FILLED",
+      "filled": "2",
+      "placed_amount": "2",
+      "cancel_requested": false,
+      "cancel_outcome": null,
+      "unresolved_since": null,
+      "retry_at": null,
+      "retry_delay_s": null,
+      "fill_reported": null,
+      "fill_reports": 0
+    },
+    {
+      "leg_index": 1,
+      "role": "take_profit",
+      "link_tag": 1001,
+      "client_order_id": "c1",
+      "status": "CANCELED",
+      "filled": "0",
+      "placed_amount": "2",
+      "cancel_requested": true,
+      "cancel_outcome": "canceled",
+      "unresolved_since": null,
+      "retry_at": null,
+      "retry_delay_s": null,
+      "fill_reported": null,
+      "fill_reports": 0
+    },
+    {
+      "leg_index": 2,
+      "role": "stop_loss",
+      "link_tag": 1002,
+      "client_order_id": "c2",
+      "status": "PARTIALLY_FILLED",
+      "filled": "1E-8",
+      "placed_amount": "2",
+      "cancel_requested": false,
+      "cancel_outcome": null,
+      "unresolved_since": 105.5,
+      "retry_at": 110.25,
+      "retry_delay_s": 2.0,
+      "fill_reported": "0.5",
+      "fill_reports": 2
+    }
+  ],
+  "winner_leg_index": 0,
+  "cancel_cause": "rollback",
+  "degraded_reasons": [
+    "double_fill",
+    "link_broken"
+  ],
+  "created_at": 100.0
+}
