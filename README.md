@@ -113,6 +113,13 @@ enabling `LinkedOrderManagerConfig(enabled=True)`:
   exits are still placed, and the position is unprotected or only partially protected.
 - **Durable store required.** The write-ahead record is what lets `recover()` find legs after a
   crash. A non-durable store is refused unless `allow_volatile_store` is set (tests only).
+- **Volatile group ids.** Without `allocator=` or a store implementing `GroupIdHighWaterStore`
+  with a durable mark, group ids (and so link tags) can repeat after a restart, and IB silently
+  drops fills for a reused tag. `InMemoryLinkedGroupStore` counts as volatile
+  (`group_id_hwm_durable = False`; custom stores may set it too, default True). Volatile ids
+  currently log a WARNING; a future release will make this an error. Pass `allocator=`, use a
+  store with a durable high-water mark, or set `allow_volatile_group_ids=True` (backtests, tests,
+  single-shot runs).
 - **Callers drive it.** The manager starts no tasks: feed `on_order_update` / `on_fill` and call
   `tick()` periodically. `place_*` returns once submission is done; check `handle.state` and
   subscribe to `"linked.group"` events. `shutdown()` persists and reports; it never cancels.

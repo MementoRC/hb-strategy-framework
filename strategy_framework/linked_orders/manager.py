@@ -199,6 +199,11 @@ class EmulatedLinkedOrderManager:
     `cancel_leg` is logged, not raised, so a leg may stay live). Shared-account deployments
     must leave `cancel_orphans` off, or scope ownership themselves.
 
+    Without an `allocator`, a store without a durable `GroupIdHighWaterStore` (not implemented,
+    or `group_id_hwm_durable` False) and `config.allow_volatile_group_ids` False, construction
+    logs a WARNING (volatile ids currently log a WARNING; a future release will make this an
+    error).
+
     Mode switching: allocator mode does not advance the high-water store. Switching a deployment
     from allocator mode back to the legacy id source is unsafe unless its id range is
     reconciled. Treat the cutover as one-way. Legacy and allocator managers must not run
@@ -222,6 +227,18 @@ class EmulatedLinkedOrderManager:
         self._codec = codec
         self._config = config
         self._store: LinkedGroupStore = store if store is not None else InMemoryLinkedGroupStore()
+        durable_hwm = isinstance(self._store, GroupIdHighWaterStore) and getattr(
+            self._store, "group_id_hwm_durable", True
+        )
+        if allocator is None and not durable_hwm and not config.allow_volatile_group_ids:
+            logger.warning(
+                "group ids, and therefore link tags, can repeat after a restart (no allocator "
+                "and no durable group-id high-water mark in the store), and IB silently drops "
+                "fills for a reused tag; pass allocator=, use a store implementing "
+                "GroupIdHighWaterStore whose HWM is durable (group_id_hwm_durable not False), "
+                "or set allow_volatile_group_ids=True; "
+                "this will become an error in a future release"
+            )
         self._clock: ClockProtocol = clock if clock is not None else _SystemClock()
         self._bus = bus
         self._groups: dict[GroupId, _Group] = {}

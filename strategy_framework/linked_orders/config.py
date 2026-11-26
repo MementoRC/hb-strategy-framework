@@ -43,6 +43,11 @@ class LinkedOrderManagerConfig:
     accepted.
     `require_recover_before_place`: when True, placing raises `RecoveryRequiredError` until
     `recover()` has completed successfully.
+    `allow_volatile_group_ids`: without an `allocator` and without a store implementing
+    `GroupIdHighWaterStore`, group ids (hence link tags) live in memory only and can repeat
+    after a restart; IB silently drops fills for a reused tag. The manager constructor then
+    logs a WARNING (a future release will make it an error) unless this is True. Set it for
+    backtests, tests and single-shot runs only.
     """
 
     enabled: bool = False
@@ -58,8 +63,13 @@ class LinkedOrderManagerConfig:
     unresolved_retry_multiplier: float = 2.0
     unresolved_retry_max_s: float = 60.0
     understated_fill_confirmations: int = DEFAULT_UNDERSTATED_FILL_CONFIRMATIONS
+    # Keep last: appending preserves positional-argument order for existing callers.
+    allow_volatile_group_ids: bool = False
 
     def __post_init__(self) -> None:
+        if not isinstance(self.allow_volatile_group_ids, bool):
+            msg = "allow_volatile_group_ids must be a bool"
+            raise TypeError(msg)
         if self.understated_fill_confirmations < 1:
             msg = "understated_fill_confirmations must be >= 1"
             raise ValueError(msg)
