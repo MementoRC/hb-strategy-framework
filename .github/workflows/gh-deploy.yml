@@ -1,38 +1,67 @@
-name: Deploy Documentation
+name: Docs
+
+# Pages source must be set to "GitHub Actions" in repo Settings.
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
     paths:
       - 'docs/**'
       - 'mkdocs.yml'
+      - 'strategy_framework/**'
+      - 'pyproject.toml'
+      - 'pixi.lock'
       - '.github/workflows/gh-deploy.yml'
+  pull_request:
+    branches: [development, main]
+    paths:
+      - 'docs/**'
+      - 'mkdocs.yml'
+      - 'strategy_framework/**'
+      - 'pyproject.toml'
+      - 'pixi.lock'
+      - '.github/workflows/gh-deploy.yml'
+  workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  deploy-docs:
+  build:
     runs-on: ubuntu-latest
-    # Currently non-functional (no hatch docs env). If restored with `mkdocs gh-deploy` (pushes to gh-pages), this job needs `contents: write`; if switched to actions/deploy-pages, use `pages: write` + `id-token: write`.
-    permissions:
-      contents: read
-    defaults:
-      run:
-        shell: bash -l {0}
-
     steps:
-      - uses: actions/checkout@v7
-
-      - name: Set up Miniconda
-        uses: conda-incubator/setup-miniconda@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          python-version: "3.10"
-          auto-update-conda: true
-          auto-activate-base: true
+          fetch-depth: 0  # full history for git-revision-date-localized
 
-      - name: Deploy documentation
-        run: |
-          conda install -c conda-forge hatch
-          hatch run docs:deploy
+      - uses: prefix-dev/setup-pixi@9936258fee697aff89b3fed6ca1f80a382ef694e # v0.11.3
+        with:
+          environments: docs
+
+      - name: Build documentation
+        run: pixi run -e docs docs-build
+
+      - name: Upload Pages artifact
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b # v4.0.0
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    permissions:
+      pages: write
+      id-token: write
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4.0.5
