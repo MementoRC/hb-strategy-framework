@@ -248,8 +248,47 @@ def test_equal_records_give_identical_json() -> None:
     assert group_record_to_dict(a)["degraded_reasons"] == sorted(r.value for r in DegradedReason)
 
 
-def test_group_id_of_returns_group_id() -> None:
-    assert group_id_of(_record(group_id=987)) == 987
+@pytest.mark.parametrize("group_id", [0, 1, 2, 987, 10**12])
+def test_group_id_of_returns_its_own_group_id(group_id: int) -> None:
+    other = _record(group_id=group_id + 1)
+    record = _record(group_id=group_id)
+    assert group_id_of(record) == group_id
+    assert group_id_of(other) == group_id + 1
+    assert group_id_of(record) != group_id_of(other)
+
+
+# -- encode strictness
+
+
+@pytest.mark.parametrize("bad", [float("nan"), float("inf"), float("-inf")])
+@pytest.mark.parametrize("field", ["unresolved_since", "retry_at", "retry_delay_s"])
+def test_encode_rejects_non_finite_leg_float(field: str, bad: float) -> None:
+    record = _record(legs=(_leg(0), _leg(1, **{field: bad})))
+    with pytest.raises(GroupRecordCodecError, match=rf"legs\[1\]\.{field}"):
+        group_record_to_dict(record)
+
+
+@pytest.mark.parametrize("bad", [float("nan"), float("inf")])
+def test_encode_rejects_non_finite_created_at(bad: float) -> None:
+    with pytest.raises(GroupRecordCodecError, match="created_at"):
+        group_record_to_dict(_record(created_at=bad))
+
+
+@pytest.mark.parametrize("bad", [D("NaN"), D("sNaN"), D("Infinity"), D("-Infinity")])
+@pytest.mark.parametrize("field", ["filled", "placed_amount", "fill_reported"])
+def test_encode_rejects_non_finite_leg_decimal(field: str, bad: Decimal) -> None:
+    record = _record(legs=(_leg(0, **{field: bad}), _leg(1)))
+    with pytest.raises(GroupRecordCodecError, match=rf"legs\[0\]\.{field}"):
+        group_record_to_dict(record)
+
+
+@pytest.mark.parametrize("bad", [D("NaN"), D("sNaN"), D("Infinity")])
+def test_encode_rejects_non_finite_spec_decimal(bad: Decimal) -> None:
+    spec = oco_spec()
+    leg0 = spec.legs[0].model_construct(**{**dict(spec.legs[0]), "amount": bad})
+    broken = spec.model_construct(kind=spec.kind, legs=(leg0, *spec.legs[1:]))
+    with pytest.raises(GroupRecordCodecError, match=r"spec\.legs\[0\]\.amount"):
+        group_record_to_dict(_record(spec=broken))
 
 
 # -- strict decoding
@@ -370,6 +409,28 @@ def test_legs_must_be_list(encoded: dict[str, Any]) -> None:
 def test_invalid_spec_is_wrapped(encoded: dict[str, Any]) -> None:
     encoded["spec"]["legs"][0]["amount"] = "-1"
     with pytest.raises(GroupRecordCodecError, match="spec"):
+        group_record_from_dict(encoded)
+
+
+def test_huge_int_for_float_field_raises_codec_error(encoded: dict[str, Any]) -> None:
+    encoded["created_at"] = 10**400
+    with pytest.raises(GroupRecordCodecError, match="created_at"):
+        group_record_from_dict(encoded)
+    encoded["created_at"] = 1.0
+    encoded["legs"][2]["retry_at"] = -(10**400)
+    with pytest.raises(GroupRecordCodecError, match=r"legs\[2\]\.retry_at"):
+        group_record_from_dict(encoded)
+
+
+def test_swapped_leg_indexes_rejected(encoded: dict[str, Any]) -> None:
+    encoded["legs"][0], encoded["legs"][1] = encoded["legs"][1], encoded["legs"][0]
+    with pytest.raises(GroupRecordCodecError, match=r"legs\[0\]\.leg_index.*expected 0.*got 1"):
+        group_record_from_dict(encoded)
+
+
+def test_duplicate_leg_index_rejected(encoded: dict[str, Any]) -> None:
+    encoded["legs"][2]["leg_index"] = 1
+    with pytest.raises(GroupRecordCodecError, match=r"legs\[2\]\.leg_index"):
         group_record_from_dict(encoded)
 
 

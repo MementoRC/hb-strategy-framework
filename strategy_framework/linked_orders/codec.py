@@ -116,67 +116,96 @@ def _enc_opt[T](value: T | None, fn: Callable[[T], Any]) -> Any:
     return None if value is None else fn(value)
 
 
-def _enc_trail(trail: TrailSpec) -> dict[str, Any]:
-    return {"kind": _enc_enum(trail.kind), "distance": str(trail.distance)}
+def _enc_dec(value: Decimal, path: str) -> str:
+    if not value.is_finite():
+        _fail(path, f"cannot encode non-finite decimal {value!r}")
+    return str(value)
 
 
-def _enc_trigger(trigger: TriggerSpec) -> dict[str, Any]:
+def _enc_float(value: float, path: str) -> float:
+    if not isfinite(value):
+        _fail(path, f"cannot encode non-finite float {value!r}")
+    return value
+
+
+def _enc_opt_at[T, R](value: T | None, path: str, fn: Callable[[T, str], R]) -> R | None:
+    return None if value is None else fn(value, path)
+
+
+def _enc_trail(trail: TrailSpec, path: str) -> dict[str, Any]:
     return {
-        "kind": _enc_enum(trigger.kind),
-        "value": str(trigger.value),
-        "reference": _enc_enum(trigger.reference),
-        "trail": _enc_opt(trigger.trail, _enc_trail),
+        "kind": _enc_enum(trail.kind),
+        "distance": _enc_dec(trail.distance, _join(path, "distance")),
     }
 
 
-def _enc_leg_spec(leg: LegSpec) -> dict[str, Any]:
+def _enc_trigger(trigger: TriggerSpec, path: str) -> dict[str, Any]:
+    return {
+        "kind": _enc_enum(trigger.kind),
+        "value": _enc_dec(trigger.value, _join(path, "value")),
+        "reference": _enc_enum(trigger.reference),
+        "trail": _enc_opt_at(trigger.trail, _join(path, "trail"), _enc_trail),
+    }
+
+
+def _enc_leg_spec(leg: LegSpec, path: str) -> dict[str, Any]:
     return {
         "role": _enc_enum(leg.role),
         "order_type": _enc_enum(leg.order_type),
         "trade_type": _enc_enum(leg.trade_type),
-        "amount": str(leg.amount),
-        "price": _enc_opt(leg.price, str),
-        "trigger": _enc_opt(leg.trigger, _enc_trigger),
-        "limit_offset": _enc_opt(leg.limit_offset, str),
+        "amount": _enc_dec(leg.amount, _join(path, "amount")),
+        "price": _enc_opt_at(leg.price, _join(path, "price"), _enc_dec),
+        "trigger": _enc_opt_at(leg.trigger, _join(path, "trigger"), _enc_trigger),
+        "limit_offset": _enc_opt_at(leg.limit_offset, _join(path, "limit_offset"), _enc_dec),
     }
 
 
-def _enc_spec(spec: LinkedOrderSpec) -> dict[str, Any]:
-    return {"kind": _enc_enum(spec.kind), "legs": [_enc_leg_spec(leg) for leg in spec.legs]}
+def _enc_spec(spec: LinkedOrderSpec, path: str) -> dict[str, Any]:
+    legs_path = _join(path, "legs")
+    return {
+        "kind": _enc_enum(spec.kind),
+        "legs": [_enc_leg_spec(leg, f"{legs_path}[{i}]") for i, leg in enumerate(spec.legs)],
+    }
 
 
-def _enc_leg(leg: LegRecord) -> dict[str, Any]:
+def _enc_leg(leg: LegRecord, path: str) -> dict[str, Any]:
+    def at(key: str) -> str:
+        return _join(path, key)
+
     return {
         "leg_index": leg.leg_index,
         "role": _enc_enum(leg.role),
         "link_tag": leg.link_tag,
         "client_order_id": leg.client_order_id,
         "status": _enc_enum(leg.status),
-        "filled": str(leg.filled),
-        "placed_amount": str(leg.placed_amount),
+        "filled": _enc_dec(leg.filled, at("filled")),
+        "placed_amount": _enc_dec(leg.placed_amount, at("placed_amount")),
         "cancel_requested": leg.cancel_requested,
         "cancel_outcome": _enc_opt(leg.cancel_outcome, _enc_enum),
-        "unresolved_since": leg.unresolved_since,
-        "retry_at": leg.retry_at,
-        "retry_delay_s": leg.retry_delay_s,
-        "fill_reported": _enc_opt(leg.fill_reported, str),
+        "unresolved_since": _enc_opt_at(leg.unresolved_since, at("unresolved_since"), _enc_float),
+        "retry_at": _enc_opt_at(leg.retry_at, at("retry_at"), _enc_float),
+        "retry_delay_s": _enc_opt_at(leg.retry_delay_s, at("retry_delay_s"), _enc_float),
+        "fill_reported": _enc_opt_at(leg.fill_reported, at("fill_reported"), _enc_dec),
         "fill_reports": leg.fill_reports,
     }
 
 
 def group_record_to_dict(record: GroupRecord) -> dict[str, Any]:
-    """Encode `record` as a JSON-safe dict (see the module docstring for the rules)."""
+    """Encode `record` as a JSON-safe dict (see the module docstring for the rules).
+
+    Raises `GroupRecordCodecError` (with a field path) for non-finite floats or Decimals.
+    """
     return {
         "schema_version": SCHEMA_VERSION,
         "group_id": record.group_id,
         "target": record.target,
-        "spec": _enc_spec(record.spec),
+        "spec": _enc_spec(record.spec, "spec"),
         "state": _enc_enum(record.state),
-        "legs": [_enc_leg(leg) for leg in record.legs],
+        "legs": [_enc_leg(leg, f"legs[{i}]") for i, leg in enumerate(record.legs)],
         "winner_leg_index": record.winner_leg_index,
         "cancel_cause": record.cancel_cause,
         "degraded_reasons": sorted(_enc_enum(r) for r in record.degraded_reasons),
-        "created_at": record.created_at,
+        "created_at": _enc_float(record.created_at, "created_at"),
     }
 
 
@@ -230,7 +259,10 @@ def _bool(value: object, path: str) -> bool:
 def _float(value: object, path: str) -> float:
     if type(value) not in (int, float):
         _fail(path, f"expected a number, got {type(value).__name__}")
-    result = float(cast("float", value))
+    try:
+        result = float(cast("float", value))
+    except (OverflowError, ValueError, TypeError) as exc:
+        _fail(path, f"cannot convert to float: {exc}")
     if not isfinite(result):
         _fail(path, "expected a finite number")
     return result
@@ -374,6 +406,9 @@ def group_record_from_dict(data: Mapping[str, Any]) -> GroupRecord:
     _check_version(data)
     obj = _obj(data, "", _GROUP_KEYS)
     legs = tuple(_dec_leg(item, f"legs[{i}]") for i, item in enumerate(_list(obj["legs"], "legs")))
+    for i, leg in enumerate(legs):
+        if leg.leg_index != i:
+            _fail(f"legs[{i}].leg_index", f"expected {i} (its position), got {leg.leg_index}")
     reasons = frozenset(
         _enum(DegradedReason, item, f"degraded_reasons[{i}]")
         for i, item in enumerate(_list(obj["degraded_reasons"], "degraded_reasons"))
