@@ -124,6 +124,23 @@ enabling `LinkedOrderManagerConfig(enabled=True)`:
   `tick()` periodically. `place_*` returns once submission is done; check `handle.state` and
   subscribe to `"linked.group"` events. `shutdown()` persists and reports; it never cancels.
 
+## Persisting GroupRecord
+
+`strategy_framework.linked_orders` owns a versioned, JSON-safe codec for `GroupRecord`, so an
+external durable store can persist groups without knowing the record layout:
+
+- `group_record_to_dict(record)` returns a dict of JSON primitives (Decimals as strings, enums as
+  their string value, `OrderType`/`TradeType` by name, tuples and frozensets as lists). Output order
+  is deterministic.
+- `group_record_from_dict(data)` is strict. A wrong `schema_version`, missing or unknown keys, wrong
+  types, bad enum values or non-finite decimals raise `GroupRecordCodecError` with a field path such
+  as `legs[1].status`.
+- `group_id_of(record)` returns the store key.
+
+Versioning: the dict carries `schema_version` (`SCHEMA_VERSION`, currently 1). On any incompatible
+change, bump `SCHEMA_VERSION` and add a migration for the older versions in
+`group_record_from_dict`; never reinterpret an old version silently.
+
 ## License
 
 This project is licensed under the Apache 2.0 License - see the [LICENSE](LICENSE) file for details.

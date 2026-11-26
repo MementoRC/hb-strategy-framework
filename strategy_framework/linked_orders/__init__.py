@@ -4,6 +4,13 @@ Not re-exported from `strategy_framework`: import from here explicitly. Emulated
 give native OCA guarantees; a sibling can fill before its cancel lands (double fill).
 """
 
+from strategy_framework.linked_orders.codec import (
+    SCHEMA_VERSION,
+    GroupRecordCodecError,
+    group_id_of,
+    group_record_from_dict,
+    group_record_to_dict,
+)
 from strategy_framework.linked_orders.config import LinkedOrderManagerConfig
 from strategy_framework.linked_orders.errors import (
     EmulationNotEnabledError,
@@ -50,6 +57,7 @@ from strategy_framework.linked_orders.types import (
 
 __all__ = [
     "LINKED_GROUP_EVENT",
+    "SCHEMA_VERSION",
     "BoundedLinkIdCodec",
     "BracketHandle",
     "CancelOutcome",
@@ -64,6 +72,7 @@ __all__ = [
     "GroupIdSpaceExhaustedError",
     "GroupInvariantError",
     "GroupRecord",
+    "GroupRecordCodecError",
     "GroupState",
     "InMemoryLinkedGroupStore",
     "LegFill",
@@ -84,4 +93,7 @@ __all__ = [
     "RecoveryRequiredError",
     "UnsupportedLegError",
     "VolatileStoreError",
+    "group_id_of",
+    "group_record_from_dict",
+    "group_record_to_dict",
 ]
