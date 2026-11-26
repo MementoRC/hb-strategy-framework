@@ -57,15 +57,19 @@ class LinkedOrderManagerConfig:
     group_id_seed: int = 1
     group_id_time_factor: int = 100
     require_recover_before_place: bool = False
-    allow_volatile_group_ids: bool = False
     unmatched_buffer_max: int = 1024
     tombstone_ttl_s: float = 300.0
     unresolved_retry_base_s: float = 1.0
     unresolved_retry_multiplier: float = 2.0
     unresolved_retry_max_s: float = 60.0
     understated_fill_confirmations: int = DEFAULT_UNDERSTATED_FILL_CONFIRMATIONS
+    # Keep last: appending preserves positional-argument order for existing callers.
+    allow_volatile_group_ids: bool = False
 
     def __post_init__(self) -> None:
+        if not isinstance(self.allow_volatile_group_ids, bool):
+            msg = "allow_volatile_group_ids must be a bool"
+            raise TypeError(msg)
         if self.understated_fill_confirmations < 1:
             msg = "understated_fill_confirmations must be >= 1"
             raise ValueError(msg)
