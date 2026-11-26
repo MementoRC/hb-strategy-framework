@@ -101,6 +101,11 @@ class GroupIdHighWaterStore(Protocol):
     among OPEN orders (e.g. Kraken `cl_ord_id`), and even then a lookup by client id can match an
     older CLOSED order and misattribute its state or fills. A store that can persist this survives
     a wiped group table. Detected with `isinstance`.
+
+    Optional attribute (not a Protocol member, so existing stores still satisfy `isinstance`):
+    `group_id_hwm_durable: bool`, read with `getattr(store, "group_id_hwm_durable", True)`. Set it
+    to False when the mark does not survive a process restart (e.g. `InMemoryLinkedGroupStore`);
+    the manager then treats the store as volatile for group-id purposes.
     """
 
     def load_group_id_hwm(self) -> GroupId | None:

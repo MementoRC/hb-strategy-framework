@@ -17,6 +17,8 @@ class InMemoryLinkedGroupStore:
         self._records: dict[GroupId, GroupRecord] = {}
         self._group_id_hwm: GroupId | None = None
 
+    group_id_hwm_durable = False  # the HWM is lost on restart
+
     @property
     def durable(self) -> bool:
         return False

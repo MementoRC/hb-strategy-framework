@@ -43,6 +43,11 @@ class LinkedOrderManagerConfig:
     accepted.
     `require_recover_before_place`: when True, placing raises `RecoveryRequiredError` until
     `recover()` has completed successfully.
+    `allow_volatile_group_ids`: without an `allocator` and without a store implementing
+    `GroupIdHighWaterStore`, group ids (hence link tags) live in memory only and can repeat
+    after a restart; IB silently drops fills for a reused tag. The manager constructor then
+    logs a WARNING (a future release will make it an error) unless this is True. Set it for
+    backtests, tests and single-shot runs only.
     """
 
     enabled: bool = False
@@ -52,6 +57,7 @@ class LinkedOrderManagerConfig:
     group_id_seed: int = 1
     group_id_time_factor: int = 100
     require_recover_before_place: bool = False
+    allow_volatile_group_ids: bool = False
     unmatched_buffer_max: int = 1024
     tombstone_ttl_s: float = 300.0
     unresolved_retry_base_s: float = 1.0
