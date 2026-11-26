@@ -17,7 +17,10 @@ from typing import TYPE_CHECKING, Any
 
 from data_type_primitives import LegRole, LinkedCancelStatus, LinkKind
 
-from strategy_framework.linked_orders.config import RetryBackoff
+from strategy_framework.linked_orders.config import (
+    DEFAULT_UNDERSTATED_FILL_CONFIRMATIONS,
+    RetryBackoff,
+)
 from strategy_framework.linked_orders.events import LinkedEventKind, LinkedGroupEvent
 from strategy_framework.linked_orders.types import (
     OUTCOME_STATES,
@@ -265,7 +268,15 @@ class FillIntake:
 class _Ctx:
     """Mutable scratch space for one transition; never escapes this module."""
 
-    def __init__(self, record: GroupRecord, now: float, *, closed: bool = False) -> None:
+    def __init__(
+        self,
+        record: GroupRecord,
+        now: float,
+        *,
+        closed: bool = False,
+        confirmations: int = DEFAULT_UNDERSTATED_FILL_CONFIRMATIONS,
+    ) -> None:
+        self.confirmations = confirmations
         self.orig = record
         self.rec = record
         self.now = now
@@ -329,21 +340,74 @@ class _Ctx:
 
     # -- leg merge
 
-    def merge(self, index: int, status: LegStatus, filled: Decimal, *, confirmed: bool) -> bool:
-        """Apply a status/fill under the monotonic rule. Returns True if the leg changed."""
+    def _understated(
+        self,
+        leg: LegRecord,
+        status: LegStatus,
+        filled: Decimal,
+        in_status: LegStatus,
+        in_filled: Decimal,
+        *,
+        polled: bool,
+    ) -> tuple[bool, int, Decimal | None]:
+        """(hold, reports, reported) for a terminal FILLED leg whose fill may be understated.
+
+        filled == 0 is always held. 0 < filled < placed is held until `confirmations` polled
+        snapshots in a row (`polled`: get_leg / list_open_legs answers) each report FILLED with
+        this same filled value. Any other report (different status, different or lower filled)
+        resets the count, and order updates / fill events / replays never count. This covers lot
+        rounding and fee netting. Once accepted, the leg stays accepted for that value.
+        """
+        if status not in _FILLED_STATUSES:
+            return False, 0, None
+        if filled == _ZERO:
+            return True, 0, None
+        if filled >= leg.placed_amount:
+            return False, 0, None
+        if filled == leg.fill_reported and leg.fill_reports >= self.confirmations:
+            return False, leg.fill_reports, leg.fill_reported
+        same = in_status in _FILLED_STATUSES and filled == leg.fill_reported
+        if polled:
+            if in_status not in _FILLED_STATUSES or in_filled != filled:
+                return True, 0, None  # stale, lower or different report: restart
+            reports = (leg.fill_reports if same else 0) + 1
+        else:
+            reports = leg.fill_reports if same else 0
+        return reports < self.confirmations, reports, filled if reports else None
+
+    def merge(
+        self,
+        index: int,
+        status: LegStatus,
+        filled: Decimal,
+        *,
+        confirmed: bool,
+    ) -> bool:
+        """Apply a status/fill under the monotonic rule. Returns True if the leg changed.
+
+        `confirmed` marks a polled snapshot: the only report that counts toward understated-fill
+        acceptance.
+        """
         leg = self.rec.legs[index]
-        new_status = merge_status(leg.status, status)
+        # A snapshot below the recorded fill is stale: it must not move the status.
+        stale = confirmed and filled < leg.filled and status in _FILLED_STATUSES
+        new_status = merge_status(leg.status, leg.status if stale else status)
         new_filled = merge_filled(leg.filled, filled)
-        if not confirmed and new_status is leg.status and new_filled == leg.filled:
+        understated_done, reports, reported = self._understated(
+            leg, new_status, new_filled, status, filled, polled=confirmed
+        )
+        counting_changed = (reports, reported) != (leg.fill_reports, leg.fill_reported)
+        if not (confirmed or counting_changed) and (
+            new_status is leg.status and new_filled == leg.filled
+        ):
             return False
         term = new_status in TERMINAL_STATUSES
-        zero_fill_done = new_status in _FILLED_STATUSES and new_filled == _ZERO
         cancel_outcome, cancel_requested = leg.cancel_outcome, leg.cancel_requested
         if confirmed:
             if cancel_outcome in _CANCEL_UNCERTAIN:
                 cancel_outcome = None
                 cancel_requested = cancel_requested and term
-            awaiting = new_status in _UNRESOLVED_STATUSES or zero_fill_done
+            awaiting = new_status in _UNRESOLVED_STATUSES or understated_done
         else:
             is_entry = self.rec.spec.kind is LinkKind.BRACKET and index == 0
             entry_pending = is_entry and term and (not is_terminal(leg) or new_filled > leg.filled)
@@ -352,13 +416,15 @@ class _Ctx:
                 new_status in _UNRESOLVED_STATUSES
                 or uncertain_cancel
                 or entry_pending
-                or zero_fill_done
+                or understated_done
             )
         changed = new_status is not leg.status or new_filled != leg.filled
         self.set_leg(
             index,
             status=new_status,
             filled=new_filled,
+            fill_reports=reports,
+            fill_reported=reported,
             cancel_outcome=cancel_outcome,
             cancel_requested=cancel_requested,
             unresolved_since=(leg.unresolved_since or self.now) if awaiting else None,
@@ -564,12 +630,21 @@ class _Ctx:
 
 def durable(record: GroupRecord) -> GroupRecord:
     """The record without transient retry state: only durable changes trigger `Persist`."""
-    legs = tuple(replace(leg, retry_at=None, retry_delay_s=None) for leg in record.legs)
+    legs = tuple(
+        replace(leg, retry_at=None, retry_delay_s=None, fill_reported=None, fill_reports=0)
+        for leg in record.legs
+    )
     return replace(record, legs=legs)
 
 
-def _run(record: GroupRecord, now: float, closed: bool, body: Callable[[_Ctx], None]) -> Transition:
-    ctx = _Ctx(record, now, closed=closed)
+def _run(
+    record: GroupRecord,
+    now: float,
+    closed: bool,
+    body: Callable[[_Ctx], None],
+    confirmations: int = DEFAULT_UNDERSTATED_FILL_CONFIRMATIONS,
+) -> Transition:
+    ctx = _Ctx(record, now, closed=closed, confirmations=confirmations)
     body(ctx)
     ctx.settle()
     return ctx.finish()
@@ -646,6 +721,7 @@ def leg_placed(
     *,
     closed: bool = False,
     replay: Sequence[OrderState | LegFill] = (),
+    confirmations: int = DEFAULT_UNDERSTATED_FILL_CONFIRMATIONS,
 ) -> Transition:
     """`place_leg` returned: register the id (the leg is OPEN until a report says otherwise).
 
@@ -664,7 +740,7 @@ def leg_placed(
         )
         _replay(ctx, leg_index, replay)
 
-    return _run(record, now, closed, body)
+    return _run(record, now, closed, body, confirmations)
 
 
 def leg_unknown(
@@ -675,6 +751,7 @@ def leg_unknown(
     *,
     closed: bool = False,
     replay: Sequence[OrderState | LegFill] = (),
+    confirmations: int = DEFAULT_UNDERSTATED_FILL_CONFIRMATIONS,
 ) -> Transition:
     """Row 5: `OrderOutcomeUnknownError`; the leg is UNKNOWN and unresolved."""
 
@@ -688,7 +765,7 @@ def leg_unknown(
         )
         _replay(ctx, leg_index, replay)
 
-    return _run(record, now, closed, body)
+    return _run(record, now, closed, body, confirmations)
 
 
 def leg_rejected(
@@ -722,6 +799,7 @@ def apply_update(
     now: float,
     *,
     closed: bool = False,
+    confirmations: int = DEFAULT_UNDERSTATED_FILL_CONFIRMATIONS,
 ) -> Transition:
     """Row 6/24: an order-state report. Unknown ids and stale reports change nothing."""
     index = find_leg(record, client_order_id)
@@ -731,7 +809,7 @@ def apply_update(
     def body(ctx: _Ctx) -> None:
         ctx.merge(index, LegStatus.from_order_state(new_state), _ZERO, confirmed=False)
 
-    return _run(record, now, closed, body)
+    return _run(record, now, closed, body, confirmations)
 
 
 def apply_fill(
@@ -751,6 +829,7 @@ def apply_snapshot(
     now: float,
     *,
     closed: bool = False,
+    confirmations: int = DEFAULT_UNDERSTATED_FILL_CONFIRMATIONS,
 ) -> Transition:
     """Row 6/21: a `get_leg` answer. A snapshot confirms; None is not proof of anything."""
 
@@ -767,7 +846,7 @@ def apply_snapshot(
             confirmed=True,
         )
 
-    return _run(record, now, closed, body)
+    return _run(record, now, closed, body, confirmations)
 
 
 def apply_cancel_outcome(

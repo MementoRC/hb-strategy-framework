@@ -15,6 +15,9 @@ class RetryBackoff:
     max_s: float = 60.0
 
 
+DEFAULT_UNDERSTATED_FILL_CONFIRMATIONS = 3
+
+
 @dataclass(frozen=True)
 class LinkedOrderManagerConfig:
     """Opt-in configuration.
@@ -33,6 +36,11 @@ class LinkedOrderManagerConfig:
     `cancel_orphans`: attempts to cancel every unmatched leg `recover()` finds. A failing
     `cancel_leg` is logged and does not fail `recover()`, so the leg may stay live. Legs of
     another manager on the same account look like orphans, so leave it off on shared accounts.
+    `understated_fill_confirmations`: a terminal FILLED report with 0 < filled < placed amount is
+    held unresolved until the venue has reported FILLED with the same filled this many times in a
+    row (snapshots and order updates; fill events do not count); it is then accepted as final at
+    that filled, which covers lot-size rounding and fee netting. FILLED with filled == 0 is never
+    accepted.
     `require_recover_before_place`: when True, placing raises `RecoveryRequiredError` until
     `recover()` has completed successfully.
     """
@@ -49,8 +57,12 @@ class LinkedOrderManagerConfig:
     unresolved_retry_base_s: float = 1.0
     unresolved_retry_multiplier: float = 2.0
     unresolved_retry_max_s: float = 60.0
+    understated_fill_confirmations: int = DEFAULT_UNDERSTATED_FILL_CONFIRMATIONS
 
     def __post_init__(self) -> None:
+        if self.understated_fill_confirmations < 1:
+            msg = "understated_fill_confirmations must be >= 1"
+            raise ValueError(msg)
         for name in (
             "grace_period_s",
             "unmatched_buffer_max",

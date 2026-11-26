@@ -285,7 +285,12 @@ class EmulatedLinkedOrderManager:
             return
         async with group.lock:
             trans = apply_update(
-                group.record, cid, update.new_state, self._now(), closed=group.closed
+                group.record,
+                cid,
+                update.new_state,
+                self._now(),
+                closed=group.closed,
+                confirmations=self._config.understated_fill_confirmations,
             )
             io = self._commit(group, trans)
         await self._after(group, io)
@@ -523,7 +528,15 @@ class EmulatedLinkedOrderManager:
             return []
         replay = self._take_buffered(cid)
         make = leg_unknown if unknown else leg_placed
-        trans = make(rec, index, cid, now, closed=group.closed, replay=replay)
+        trans = make(
+            rec,
+            index,
+            cid,
+            now,
+            closed=group.closed,
+            replay=replay,
+            confirmations=self._config.understated_fill_confirmations,
+        )
         return self._commit(group, trans)
 
     # ------------------------------------------------------------------ action execution
@@ -616,7 +629,14 @@ class EmulatedLinkedOrderManager:
         self, group: _Group, index: int, snapshot: LegSnapshot | None
     ) -> list[_IoAction]:
         async with group.lock:
-            trans = apply_snapshot(group.record, index, snapshot, self._now(), closed=group.closed)
+            trans = apply_snapshot(
+                group.record,
+                index,
+                snapshot,
+                self._now(),
+                closed=group.closed,
+                confirmations=self._config.understated_fill_confirmations,
+            )
             return self._commit(group, trans)
 
     async def _safe_get(
@@ -693,7 +713,14 @@ class EmulatedLinkedOrderManager:
         """Adopt a stored record; every leg that reached (or may have reached) the venue is
         unresolved until the venue answers, which defers any cancel until all are reconciled."""
         legs = tuple(
-            replace(leg, unresolved_since=now, retry_at=None, retry_delay_s=None)
+            replace(
+                leg,
+                unresolved_since=now,
+                retry_at=None,
+                retry_delay_s=None,
+                fill_reported=None,
+                fill_reports=0,
+            )
             if leg.status is not LegStatus.NOT_PLACED
             else leg
             for leg in record.legs

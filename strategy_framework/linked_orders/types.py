@@ -132,6 +132,10 @@ class LegRecord:
     # Transient get_leg backoff state: never a persist trigger, cleared on load and on resolution.
     retry_at: float | None = None
     retry_delay_s: float | None = None
+    # Transient understated-fill tracking (same lifecycle as the retry state): the filled value
+    # the venue keeps reporting as FILLED while below placed_amount, and how often it did.
+    fill_reported: Decimal | None = None
+    fill_reports: int = 0
 
 
 @dataclass(frozen=True)
